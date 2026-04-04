@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { Organization } from '@/types';
 import OrgLogo from '@/components/ui/OrgLogo';
 
@@ -80,13 +81,16 @@ export default function OrganizationCard({
             {/* Name row */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span
-                  className={`text-[13px] font-semibold truncate ${
-                    isSelected ? 'text-white' : 'text-slate-900'
+                {/* Name navigates to detail page — stops propagation so onClick (panel select) still fires */}
+                <Link
+                  href={`/organizations/${org.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`text-[13px] font-semibold truncate hover:underline underline-offset-2 ${
+                    isSelected ? 'text-white' : 'text-slate-900 hover:text-[#0d1f3c]'
                   }`}
                 >
                   {org.name}
-                </span>
+                </Link>
                 {/* Verified dot */}
                 <span className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-blue-500 flex items-center justify-center">
                   <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">

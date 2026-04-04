@@ -75,12 +75,15 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
               </svg>
             </p>
           </div>
-          <button className="flex items-center gap-1.5 rounded-xl bg-[#0d1f3c] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e3a5f] transition-colors shadow-sm">
+          <Link
+            href="/organizations/new"
+            className="flex items-center gap-1.5 rounded-xl bg-[#0d1f3c] px-4 py-2 text-sm font-medium text-white hover:bg-[#1e3a5f] transition-colors shadow-sm"
+          >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
             Add Organization
-          </button>
+          </Link>
         </div>
 
         {/* Stats row */}

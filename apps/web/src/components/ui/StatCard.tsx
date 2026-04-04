@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { DashboardStat, StatIconType } from '@/types';
 
 const iconConfig: Record<
@@ -46,27 +47,22 @@ interface StatCardProps {
   stat: DashboardStat;
 }
 
-export default function StatCard({ stat }: StatCardProps) {
+function CardContent({ stat }: StatCardProps) {
   const config = iconConfig[stat.iconType];
-
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${config.bg} ${config.iconColor} mb-3`}>
-            {config.icon}
-          </div>
-          <p className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-            {stat.value}
-          </p>
-          <p className="mt-1.5 text-xs font-medium text-slate-600">
-            {stat.label}
-          </p>
-        </div>
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:border-slate-200 hover:shadow-md transition-all">
+      <div className={`inline-flex items-center justify-center w-8 h-8 rounded-lg ${config.bg} ${config.iconColor} mb-3`}>
+        {config.icon}
       </div>
+      <p className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
+        {stat.value}
+      </p>
+      <p className="mt-1.5 text-xs font-medium text-slate-600">
+        {stat.label}
+      </p>
       {stat.change && (
         <p
-          className={`mt-2.5 text-[11px] font-medium ${
+          className={`mt-2 text-[11px] font-medium ${
             stat.changeDirection === 'up'
               ? 'text-emerald-600'
               : stat.changeDirection === 'down'
@@ -81,4 +77,15 @@ export default function StatCard({ stat }: StatCardProps) {
       )}
     </div>
   );
+}
+
+export default function StatCard({ stat }: StatCardProps) {
+  if (stat.href) {
+    return (
+      <Link href={stat.href} className="block">
+        <CardContent stat={stat} />
+      </Link>
+    );
+  }
+  return <CardContent stat={stat} />;
 }

@@ -8,6 +8,7 @@ export const dashboardStats: DashboardStat[] = [
     change: '+6 this month',
     changeDirection: 'up',
     iconType: 'organizations',
+    href: '/organizations',
   },
   {
     id: 'pending-responses',
@@ -16,6 +17,7 @@ export const dashboardStats: DashboardStat[] = [
     change: 'Awaiting reply',
     changeDirection: 'neutral',
     iconType: 'pending',
+    href: '/pending',
   },
   {
     id: 'followups-due',
@@ -24,6 +26,7 @@ export const dashboardStats: DashboardStat[] = [
     change: 'Needs attention',
     changeDirection: 'neutral',
     iconType: 'followups',
+    href: '/follow-ups',
   },
   {
     id: 'active-partners',
@@ -32,5 +35,6 @@ export const dashboardStats: DashboardStat[] = [
     change: 'Confirmed partnerships',
     changeDirection: 'up',
     iconType: 'partners',
+    href: '/active-partners',
   },
 ];

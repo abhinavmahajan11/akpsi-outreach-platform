@@ -88,6 +88,7 @@ export interface DashboardStat {
   changeDirection?: 'up' | 'down' | 'neutral';
   description?: string;
   iconType: StatIconType;
+  href?: string;
 }
 
 export interface QuickAction {
@@ -102,10 +103,15 @@ export type NavIconType =
   | 'contacts'
   | 'templates'
   | 'analytics'
-  | 'handoff';
+  | 'handoff'
+  | 'follow-ups'
+  | 'active-partners'
+  | 'pending';
 
 export interface NavItem {
   label: string;
   href: string;
   icon: NavIconType;
+  /** Renders a subtle divider above this item */
+  dividerBefore?: boolean;
 }
