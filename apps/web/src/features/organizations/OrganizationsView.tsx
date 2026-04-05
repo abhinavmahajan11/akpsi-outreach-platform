@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { Organization, OutreachStatus } from '@/types';
+import type { OutreachStatus } from '@/types';
+import { useOrgs } from '@/context/OrgsContext';
 import OrgRow from './OrgRow';
 import EmptyState from '@/components/ui/EmptyState';
 
@@ -16,16 +17,15 @@ const STATUS_FILTERS: Array<{ label: string; value: OutreachStatus | 'All' }> = 
 ];
 
 interface OrganizationsViewProps {
-  organizations: Organization[];
   title?: string;
   subtitle?: string;
 }
 
 export default function OrganizationsView({
-  organizations,
   title = 'Organizations',
   subtitle = 'All tracked organizations across committees',
 }: OrganizationsViewProps) {
+  const { organizations } = useOrgs();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<OutreachStatus | 'All'>('All');
 

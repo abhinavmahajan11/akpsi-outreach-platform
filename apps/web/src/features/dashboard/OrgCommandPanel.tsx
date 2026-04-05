@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import type { Organization } from '@/types';
+import { useOrgs } from '@/context/OrgsContext';
 import ReminderModal from '@/features/reminders/ReminderModal';
 import AddNoteModal from '@/features/notes/AddNoteModal';
 import LogActivityModal from '@/features/activity/LogActivityModal';
@@ -52,6 +53,7 @@ interface OrgCommandPanelProps {
 }
 
 export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
+  const { addNote, addReminder, logActivity } = useOrgs();
   const status = statusStyles[org.status];
   const primaryContact = org.contacts.find((c) => c.isPrimary) ?? org.contacts[0];
   const openReminders = org.reminders.filter((r) => !r.isCompleted);
@@ -299,19 +301,46 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
         onClose={() => setReminderOpen(false)}
         orgName={org.name}
         defaultTitle={org.nextStep}
-        onSave={() => showToast('Reminder saved')}
+        onSave={({ title, date, assignedTo }) => {
+          addReminder(org.id, {
+            id: `rem-${Date.now()}`,
+            title,
+            dueDate: new Date(date).toISOString(),
+            isCompleted: false,
+            assignedTo,
+          });
+          showToast('Reminder saved');
+        }}
       />
       <AddNoteModal
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         orgName={org.name}
-        onSave={() => showToast('Note added')}
+        onSave={(content) => {
+          addNote(org.id, {
+            id: `note-${Date.now()}`,
+            content,
+            authorName: 'Priya Nair',
+            createdAt: new Date().toISOString(),
+          });
+          showToast('Note added');
+        }}
       />
       <LogActivityModal
         open={logOpen}
         onClose={() => setLogOpen(false)}
         orgName={org.name}
-        onSave={() => showToast('Activity logged')}
+        onSave={({ type, title, description }) => {
+          logActivity(org.id, {
+            id: `act-${Date.now()}`,
+            type: type as 'email' | 'call' | 'meeting' | 'note' | 'follow_up',
+            title,
+            description,
+            date: new Date().toISOString(),
+            authorName: 'Priya Nair',
+          });
+          showToast('Activity logged');
+        }}
       />
       <DraftEmailModal
         open={draftOpen}

@@ -2,12 +2,12 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { Organization, OrganizationType, CommitteeType, OutreachStatus } from '@/types';
+import type { OrganizationType, CommitteeType, OutreachStatus, DashboardStat } from '@/types';
 import StatCard from '@/components/ui/StatCard';
 import OrganizationCard from '@/features/organizations/OrganizationCard';
 import OrgCommandPanel from './OrgCommandPanel';
 import DropdownMenu from '@/components/ui/DropdownMenu';
-import { dashboardStats } from '@/data/dashboard';
+import { useOrgs } from '@/context/OrgsContext';
 
 const TYPE_FILTERS: Array<{ label: string; value: OrganizationType | 'All' }> =
   [
@@ -45,14 +45,9 @@ const STATUSES: Array<{ label: string; value: OutreachStatus | 'All' }> = [
   { label: 'Completed', value: 'completed' },
 ];
 
-interface DashboardViewProps {
-  organizations: Organization[];
-}
-
-export default function DashboardView({ organizations }: DashboardViewProps) {
-  const [selectedOrgId, setSelectedOrgId] = useState<string>(
-    organizations[0]?.id ?? ''
-  );
+export default function DashboardView() {
+  const { organizations } = useOrgs();
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState<OrganizationType | 'All'>('All');
   const [activeCategoryTab, setActiveCategoryTab] = useState<string | null>(null);
@@ -65,7 +60,54 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const selectedOrg = organizations.find((o) => o.id === selectedOrgId);
+  // Default selection to first org on initial render / when list changes
+  const selectedOrg =
+    organizations.find((o) => o.id === selectedOrgId) ?? organizations[0];
+
+  // Compute dashboard stats from live data
+  const computedStats = useMemo<DashboardStat[]>(
+    () => [
+      {
+        id: 'total-orgs',
+        label: 'Organizations Tracked',
+        value: organizations.length,
+        change: `${organizations.length} total`,
+        changeDirection: 'up',
+        iconType: 'organizations',
+        href: '/organizations',
+      },
+      {
+        id: 'pending-responses',
+        label: 'Pending Responses',
+        value: organizations.filter((o) => o.status === 'pending_response').length,
+        change: 'Awaiting reply',
+        changeDirection: 'neutral',
+        iconType: 'pending',
+        href: '/pending',
+      },
+      {
+        id: 'followups-due',
+        label: 'Follow-Ups Due',
+        value: organizations.filter((o) =>
+          o.reminders.some((r) => !r.isCompleted),
+        ).length,
+        change: 'Needs attention',
+        changeDirection: 'neutral',
+        iconType: 'followups',
+        href: '/follow-ups',
+      },
+      {
+        id: 'active-partners',
+        label: 'Active Partners',
+        value: organizations.filter((o) => o.status === 'active_partner').length,
+        change: 'Confirmed partnerships',
+        changeDirection: 'up',
+        iconType: 'partners',
+        href: '/active-partners',
+      },
+    ],
+    [organizations],
+  );
 
   const filteredOrgs = useMemo(() => {
     const filtered = organizations.filter((org) => {
@@ -134,7 +176,7 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
 
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 mb-5">
-          {dashboardStats.map((stat) => (
+          {computedStats.map((stat) => (
             <StatCard key={stat.id} stat={stat} />
           ))}
         </div>

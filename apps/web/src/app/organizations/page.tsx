@@ -1,4 +1,3 @@
-import { organizations } from '@/data/organizations';
 import OrganizationsView from '@/features/organizations/OrganizationsView';
 
 export const metadata = {
@@ -6,5 +5,5 @@ export const metadata = {
 };
 
 export default function OrganizationsPage() {
-  return <OrganizationsView organizations={organizations} />;
+  return <OrganizationsView />;
 }

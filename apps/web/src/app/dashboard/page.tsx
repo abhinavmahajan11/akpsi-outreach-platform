@@ -1,4 +1,3 @@
-import { organizations } from '@/data/organizations';
 import DashboardView from '@/features/dashboard/DashboardView';
 
 export const metadata = {
@@ -6,5 +5,5 @@ export const metadata = {
 };
 
 export default function DashboardPage() {
-  return <DashboardView organizations={organizations} />;
+  return <DashboardView />;
 }

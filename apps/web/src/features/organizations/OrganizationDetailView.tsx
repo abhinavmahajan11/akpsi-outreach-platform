@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { Organization } from '@/types';
+import { notFound } from 'next/navigation';
 import StatusBadge from '@/components/ui/StatusBadge';
 import TagBadge from '@/components/ui/TagBadge';
 import SectionHeader from '@/components/ui/SectionHeader';
@@ -13,15 +13,19 @@ import AddNoteModal from '@/features/notes/AddNoteModal';
 import LogActivityModal from '@/features/activity/LogActivityModal';
 import DraftEmailModal from '@/features/email/DraftEmailModal';
 import Toast from '@/components/ui/Toast';
+import { useOrgs } from '@/context/OrgsContext';
 
 interface OrganizationDetailViewProps {
-  org: Organization;
+  orgId: string;
 }
 
-export default function OrganizationDetailView({
-  org,
-}: OrganizationDetailViewProps) {
-  const primaryContact = org.contacts.find((c) => c.isPrimary) ?? org.contacts[0];
+export default function OrganizationDetailView({ orgId }: OrganizationDetailViewProps) {
+  const { getOrgById, addNote, addReminder, logActivity } = useOrgs();
+  const org = getOrgById(orgId);
+
+  const primaryContact = org
+    ? org.contacts.find((c) => c.isPrimary) ?? org.contacts[0]
+    : undefined;
 
   // Modal open states
   const [reminderOpen, setReminderOpen] = useState(false);
@@ -37,6 +41,8 @@ export default function OrganizationDetailView({
     setToastMsg(msg);
     setToastOpen(true);
   }
+
+  if (!org) notFound();
 
   return (
     <div className="min-h-full">
@@ -384,19 +390,46 @@ export default function OrganizationDetailView({
         onClose={() => setReminderOpen(false)}
         orgName={org.name}
         defaultTitle={org.nextStep}
-        onSave={() => showToast('Reminder saved')}
+        onSave={({ title, date, assignedTo }) => {
+          addReminder(org.id, {
+            id: `rem-${Date.now()}`,
+            title,
+            dueDate: new Date(date).toISOString(),
+            isCompleted: false,
+            assignedTo,
+          });
+          showToast('Reminder saved');
+        }}
       />
       <AddNoteModal
         open={noteOpen}
         onClose={() => setNoteOpen(false)}
         orgName={org.name}
-        onSave={() => showToast('Note added')}
+        onSave={(content) => {
+          addNote(org.id, {
+            id: `note-${Date.now()}`,
+            content,
+            authorName: 'Priya Nair',
+            createdAt: new Date().toISOString(),
+          });
+          showToast('Note added');
+        }}
       />
       <LogActivityModal
         open={logOpen}
         onClose={() => setLogOpen(false)}
         orgName={org.name}
-        onSave={() => showToast('Activity logged')}
+        onSave={({ type, title, description }) => {
+          logActivity(org.id, {
+            id: `act-${Date.now()}`,
+            type: type as 'email' | 'call' | 'meeting' | 'note' | 'follow_up',
+            title,
+            description,
+            date: new Date().toISOString(),
+            authorName: 'Priya Nair',
+          });
+          showToast('Activity logged');
+        }}
       />
       <DraftEmailModal
         open={draftOpen}
