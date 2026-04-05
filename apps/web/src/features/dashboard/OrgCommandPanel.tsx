@@ -1,5 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import type { Organization } from '@/types';
+import ReminderModal from '@/features/reminders/ReminderModal';
+import AddNoteModal from '@/features/notes/AddNoteModal';
+import LogActivityModal from '@/features/activity/LogActivityModal';
+import DraftEmailModal from '@/features/email/DraftEmailModal';
+import Toast from '@/components/ui/Toast';
 
 const statusStyles: Record<
   Organization['status'],
@@ -49,6 +57,21 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
   const openReminders = org.reminders.filter((r) => !r.isCompleted);
   const latestNote = org.notes[0];
 
+  // Modal open states
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
+
+  // Toast
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastOpen, setToastOpen] = useState(false);
+
+  function showToast(msg: string) {
+    setToastMsg(msg);
+    setToastOpen(true);
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── SECTION 1: Committee + Assignee ── */}
@@ -75,11 +98,14 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
               <p className="text-[10px] text-slate-400">Assigned member</p>
             </div>
           </div>
-          <button className="text-slate-400 hover:text-slate-600">
+          <Link
+            href={`/organizations/${org.id}`}
+            className="text-slate-400 hover:text-slate-600"
+          >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
             </svg>
-          </button>
+          </Link>
         </div>
       </div>
 
@@ -126,7 +152,10 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
       <div className="px-4 py-3 border-b border-slate-100">
         <div className="flex items-start justify-between gap-2">
           <p className="text-[11px] text-slate-500 font-medium flex-shrink-0">Next step</p>
-          <button className="text-[10px] font-medium text-[#0d1f3c] hover:text-[#1e3a5f] flex-shrink-0">
+          <button
+            onClick={() => setReminderOpen(true)}
+            className="text-[10px] font-medium text-[#0d1f3c] hover:text-[#1e3a5f] flex-shrink-0"
+          >
             Set Reminder
           </button>
         </div>
@@ -161,9 +190,22 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
       {/* ── SECTION 5: Quick Actions ── */}
       <div className="px-4 py-3 border-b border-slate-100">
         <div className="grid grid-cols-3 gap-1.5">
-          <QuickActionBtn label="Follow Up" icon="mail" />
-          <QuickActionBtn label="Log Activity" icon="edit" />
-          <QuickActionBtn label="Draft Email" icon="sparkle" accent />
+          <QuickActionBtn
+            label="Follow Up"
+            icon="mail"
+            onClick={() => setDraftOpen(true)}
+          />
+          <QuickActionBtn
+            label="Log Activity"
+            icon="edit"
+            onClick={() => setLogOpen(true)}
+          />
+          <QuickActionBtn
+            label="Draft Email"
+            icon="sparkle"
+            accent
+            onClick={() => setDraftOpen(true)}
+          />
         </div>
       </div>
 
@@ -174,7 +216,10 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
               Internal Notes
             </p>
-            <button className="text-[10px] text-[#0d1f3c] font-medium hover:text-[#1e3a5f]">
+            <button
+              onClick={() => setNoteOpen(true)}
+              className="text-[10px] text-[#0d1f3c] font-medium hover:text-[#1e3a5f]"
+            >
               + Add Note
             </button>
           </div>
@@ -201,9 +246,12 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
               Follow-Up Reminders
             </p>
-            <button className="text-[10px] text-[#0d1f3c] font-medium hover:text-[#1e3a5f]">
-              For this Commit &rsaquo;
-            </button>
+            <Link
+              href={`/organizations/${org.id}`}
+              className="text-[10px] text-[#0d1f3c] font-medium hover:text-[#1e3a5f]"
+            >
+              View all &rsaquo;
+            </Link>
           </div>
           {openReminders.slice(0, 2).map((reminder) => (
             <div key={reminder.id} className="flex items-start gap-2 mb-2">
@@ -237,10 +285,48 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
           </svg>
         </Link>
-        <button className="text-[11px] text-slate-400 hover:text-slate-600 font-medium">
+        <button
+          onClick={() => showToast('Rename feature coming soon')}
+          className="text-[11px] text-slate-400 hover:text-slate-600 font-medium"
+        >
           Rename
         </button>
       </div>
+
+      {/* Modals */}
+      <ReminderModal
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        orgName={org.name}
+        defaultTitle={org.nextStep}
+        onSave={() => showToast('Reminder saved')}
+      />
+      <AddNoteModal
+        open={noteOpen}
+        onClose={() => setNoteOpen(false)}
+        orgName={org.name}
+        onSave={() => showToast('Note added')}
+      />
+      <LogActivityModal
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        orgName={org.name}
+        onSave={() => showToast('Activity logged')}
+      />
+      <DraftEmailModal
+        open={draftOpen}
+        onClose={() => setDraftOpen(false)}
+        orgName={org.name}
+        contactName={primaryContact?.name ?? 'there'}
+        contactEmail={primaryContact?.email}
+        onCopy={() => showToast('Email copied to clipboard')}
+      />
+
+      <Toast
+        open={toastOpen}
+        message={toastMsg}
+        onClose={() => setToastOpen(false)}
+      />
     </div>
   );
 }
@@ -249,10 +335,12 @@ function QuickActionBtn({
   label,
   icon,
   accent = false,
+  onClick,
 }: {
   label: string;
   icon: 'mail' | 'edit' | 'sparkle';
   accent?: boolean;
+  onClick: () => void;
 }) {
   const icons = {
     mail: (
@@ -274,6 +362,7 @@ function QuickActionBtn({
 
   return (
     <button
+      onClick={onClick}
       className={`flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-center transition-colors ${
         accent
           ? 'bg-[#0d1f3c] text-white hover:bg-[#1e3a5f]'

@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import type { Organization } from '@/types';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -5,6 +8,11 @@ import TagBadge from '@/components/ui/TagBadge';
 import SectionHeader from '@/components/ui/SectionHeader';
 import OrgLogo from '@/components/ui/OrgLogo';
 import ActivityTimeline from '@/features/activity/ActivityTimeline';
+import ReminderModal from '@/features/reminders/ReminderModal';
+import AddNoteModal from '@/features/notes/AddNoteModal';
+import LogActivityModal from '@/features/activity/LogActivityModal';
+import DraftEmailModal from '@/features/email/DraftEmailModal';
+import Toast from '@/components/ui/Toast';
 
 interface OrganizationDetailViewProps {
   org: Organization;
@@ -13,6 +21,23 @@ interface OrganizationDetailViewProps {
 export default function OrganizationDetailView({
   org,
 }: OrganizationDetailViewProps) {
+  const primaryContact = org.contacts.find((c) => c.isPrimary) ?? org.contacts[0];
+
+  // Modal open states
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
+
+  // Toast
+  const [toastMsg, setToastMsg] = useState('');
+  const [toastOpen, setToastOpen] = useState(false);
+
+  function showToast(msg: string) {
+    setToastMsg(msg);
+    setToastOpen(true);
+  }
+
   return (
     <div className="min-h-full">
       {/* Top bar */}
@@ -122,10 +147,16 @@ export default function OrganizationDetailView({
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <button className="rounded-lg bg-[#0d1f3c] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a5f] transition-colors">
+              <button
+                onClick={() => setDraftOpen(true)}
+                className="rounded-lg bg-[#0d1f3c] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a5f] transition-colors"
+              >
                 Draft Email
               </button>
-              <button className="rounded-lg bg-white ring-1 ring-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors">
+              <button
+                onClick={() => setLogOpen(true)}
+                className="rounded-lg bg-white ring-1 ring-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50 transition-colors"
+              >
                 Log Action
               </button>
             </div>
@@ -142,7 +173,10 @@ export default function OrganizationDetailView({
                 title="Contacts"
                 subtitle={`${org.contacts.length} contact${org.contacts.length !== 1 ? 's' : ''} on file`}
                 action={
-                  <button className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]">
+                  <button
+                    onClick={() => showToast('Contact management coming soon')}
+                    className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]"
+                  >
                     Add contact
                   </button>
                 }
@@ -202,7 +236,10 @@ export default function OrganizationDetailView({
                 title="Notes"
                 subtitle={`${org.notes.length} note${org.notes.length !== 1 ? 's' : ''}`}
                 action={
-                  <button className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]">
+                  <button
+                    onClick={() => setNoteOpen(true)}
+                    className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]"
+                  >
                     Add note
                   </button>
                 }
@@ -252,7 +289,10 @@ export default function OrganizationDetailView({
               <SectionHeader
                 title="Reminders"
                 action={
-                  <button className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]">
+                  <button
+                    onClick={() => setReminderOpen(true)}
+                    className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]"
+                  >
                     Add
                   </button>
                 }
@@ -311,16 +351,67 @@ export default function OrganizationDetailView({
             <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-5 py-5">
               <SectionHeader title="Actions" />
               <div className="mt-3 space-y-2">
-                <ActionRow label="Send Follow-Up Email" />
-                <ActionRow label="Log Outreach Activity" />
-                <ActionRow label="Draft Email with AI" accent />
-                <ActionRow label="Update Status" />
-                <ActionRow label="Add to Reminders" />
+                <ActionRow
+                  label="Send Follow-Up Email"
+                  onClick={() => setDraftOpen(true)}
+                />
+                <ActionRow
+                  label="Log Outreach Activity"
+                  onClick={() => setLogOpen(true)}
+                />
+                <ActionRow
+                  label="Draft Email with AI"
+                  accent
+                  onClick={() => setDraftOpen(true)}
+                />
+                <ActionRow
+                  label="Update Status"
+                  onClick={() => showToast('Status update coming soon')}
+                />
+                <ActionRow
+                  label="Add to Reminders"
+                  onClick={() => setReminderOpen(true)}
+                />
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ReminderModal
+        open={reminderOpen}
+        onClose={() => setReminderOpen(false)}
+        orgName={org.name}
+        defaultTitle={org.nextStep}
+        onSave={() => showToast('Reminder saved')}
+      />
+      <AddNoteModal
+        open={noteOpen}
+        onClose={() => setNoteOpen(false)}
+        orgName={org.name}
+        onSave={() => showToast('Note added')}
+      />
+      <LogActivityModal
+        open={logOpen}
+        onClose={() => setLogOpen(false)}
+        orgName={org.name}
+        onSave={() => showToast('Activity logged')}
+      />
+      <DraftEmailModal
+        open={draftOpen}
+        onClose={() => setDraftOpen(false)}
+        orgName={org.name}
+        contactName={primaryContact?.name ?? 'there'}
+        contactEmail={primaryContact?.email}
+        onCopy={() => showToast('Email copied to clipboard')}
+      />
+
+      <Toast
+        open={toastOpen}
+        message={toastMsg}
+        onClose={() => setToastOpen(false)}
+      />
     </div>
   );
 }
@@ -328,12 +419,15 @@ export default function OrganizationDetailView({
 function ActionRow({
   label,
   accent = false,
+  onClick,
 }: {
   label: string;
   accent?: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
+      onClick={onClick}
       className={`w-full text-left rounded-xl px-3.5 py-2.5 text-xs font-medium transition-colors flex items-center justify-between group ${
         accent
           ? 'bg-[#0d1f3c] text-white hover:bg-[#1e3a5f]'

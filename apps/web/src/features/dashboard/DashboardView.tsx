@@ -2,10 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import type { Organization, OrganizationType } from '@/types';
+import type { Organization, OrganizationType, CommitteeType, OutreachStatus } from '@/types';
 import StatCard from '@/components/ui/StatCard';
 import OrganizationCard from '@/features/organizations/OrganizationCard';
 import OrgCommandPanel from './OrgCommandPanel';
+import DropdownMenu from '@/components/ui/DropdownMenu';
 import { dashboardStats } from '@/data/dashboard';
 
 const TYPE_FILTERS: Array<{ label: string; value: OrganizationType | 'All' }> =
@@ -24,6 +25,26 @@ const CATEGORY_TABS = [
   { label: 'Service', tag: 'service' },
 ];
 
+const COMMITTEES: Array<{ label: string; value: CommitteeType | 'All' }> = [
+  { label: 'All Committees', value: 'All' },
+  { label: 'Professional Development', value: 'Professional Development' },
+  { label: 'Community Service', value: 'Community Service' },
+  { label: 'Brotherhood', value: 'Brotherhood' },
+  { label: 'Fundraising', value: 'Fundraising' },
+  { label: 'Marketing', value: 'Marketing' },
+  { label: 'Alumni Relations', value: 'Alumni Relations' },
+];
+
+const STATUSES: Array<{ label: string; value: OutreachStatus | 'All' }> = [
+  { label: 'All Status', value: 'All' },
+  { label: 'Active Partner', value: 'active_partner' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Awaiting Response', value: 'pending_response' },
+  { label: 'No Contact', value: 'no_contact' },
+  { label: 'Declined', value: 'declined' },
+  { label: 'Completed', value: 'completed' },
+];
+
 interface DashboardViewProps {
   organizations: Organization[];
 }
@@ -35,11 +56,19 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState<OrganizationType | 'All'>('All');
   const [activeCategoryTab, setActiveCategoryTab] = useState<string | null>(null);
+  const [committeeFilter, setCommitteeFilter] = useState<CommitteeType | 'All'>('All');
+  const [statusFilter, setStatusFilter] = useState<OutreachStatus | 'All'>('All');
+  const [sortBy, setSortBy] = useState<'name' | 'lastContacted' | 'status'>('name');
+
+  // Dropdown open states
+  const [committeeOpen, setCommitteeOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const selectedOrg = organizations.find((o) => o.id === selectedOrgId);
 
   const filteredOrgs = useMemo(() => {
-    return organizations.filter((org) => {
+    const filtered = organizations.filter((org) => {
       const matchesSearch =
         searchQuery.trim() === '' ||
         org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -52,9 +81,26 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
         activeCategoryTab === null ||
         org.tags.some((t) => t.includes(activeCategoryTab));
 
-      return matchesSearch && matchesType && matchesCategory;
+      const matchesCommittee =
+        committeeFilter === 'All' || org.committeeOwner === committeeFilter;
+
+      const matchesStatus =
+        statusFilter === 'All' || org.status === statusFilter;
+
+      return matchesSearch && matchesType && matchesCategory && matchesCommittee && matchesStatus;
     });
-  }, [organizations, searchQuery, activeType, activeCategoryTab]);
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'lastContacted') {
+        const aDate = a.lastContactedAt ? new Date(a.lastContactedAt).getTime() : 0;
+        const bDate = b.lastContactedAt ? new Date(b.lastContactedAt).getTime() : 0;
+        return bDate - aDate;
+      }
+      if (sortBy === 'status') return a.status.localeCompare(b.status);
+      return 0;
+    });
+  }, [organizations, searchQuery, activeType, activeCategoryTab, committeeFilter, statusFilter, sortBy]);
 
   return (
     <div className="flex flex-col h-full">
@@ -100,33 +146,100 @@ export default function DashboardView({ organizations }: DashboardViewProps) {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-900">Organizations</h2>
           <div className="flex items-center gap-2">
-            {/* All Committees dropdown (UI only) */}
-            <button className="flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 shadow-sm transition-colors">
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              All Committees
-              <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
+            {/* All Committees dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => { setCommitteeOpen((v) => !v); setStatusOpen(false); setMoreOpen(false); }}
+                className={`flex items-center gap-1.5 rounded-lg bg-white border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors ${
+                  committeeFilter !== 'All'
+                    ? 'border-[#0d1f3c]/30 text-[#0d1f3c]'
+                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                {committeeFilter === 'All' ? 'All Committees' : committeeFilter}
+                <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              <DropdownMenu
+                open={committeeOpen}
+                onClose={() => setCommitteeOpen(false)}
+                position="right-0 top-full mt-1"
+                minWidth="min-w-[200px]"
+                items={COMMITTEES.map((c) => ({
+                  label: c.label,
+                  onClick: () => setCommitteeFilter(c.value),
+                }))}
+              />
+            </div>
 
-            {/* All Status dropdown (UI only) */}
-            <button className="flex items-center gap-1.5 rounded-lg bg-white border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-300 shadow-sm transition-colors">
-              <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              All Status
-              <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
+            {/* All Status dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => { setStatusOpen((v) => !v); setCommitteeOpen(false); setMoreOpen(false); }}
+                className={`flex items-center gap-1.5 rounded-lg bg-white border px-3 py-1.5 text-xs font-medium shadow-sm transition-colors ${
+                  statusFilter !== 'All'
+                    ? 'border-[#0d1f3c]/30 text-[#0d1f3c]'
+                    : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                <svg className="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                {statusFilter === 'All' ? 'All Status' : STATUSES.find((s) => s.value === statusFilter)?.label ?? 'All Status'}
+                <svg className="w-3 h-3 text-slate-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
+              <DropdownMenu
+                open={statusOpen}
+                onClose={() => setStatusOpen(false)}
+                position="right-0 top-full mt-1"
+                minWidth="min-w-[180px]"
+                items={STATUSES.map((s) => ({
+                  label: s.label,
+                  onClick: () => setStatusFilter(s.value),
+                }))}
+              />
+            </div>
 
-            <button className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:border-slate-300 shadow-sm">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-              </svg>
-            </button>
+            {/* More / sort menu */}
+            <div className="relative">
+              <button
+                onClick={() => { setMoreOpen((v) => !v); setCommitteeOpen(false); setStatusOpen(false); }}
+                className="w-7 h-7 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-400 hover:border-slate-300 shadow-sm"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                </svg>
+              </button>
+              <DropdownMenu
+                open={moreOpen}
+                onClose={() => setMoreOpen(false)}
+                position="right-0 top-full mt-1"
+                minWidth="min-w-[180px]"
+                items={[
+                  { label: 'Sort A → Z', onClick: () => setSortBy('name') },
+                  { label: 'Sort by Last Contacted', onClick: () => setSortBy('lastContacted') },
+                  { label: 'Sort by Status', onClick: () => setSortBy('status') },
+                  {
+                    label: 'Clear All Filters',
+                    dividerBefore: true,
+                    onClick: () => {
+                      setCommitteeFilter('All');
+                      setStatusFilter('All');
+                      setActiveCategoryTab(null);
+                      setActiveType('All');
+                      setSearchQuery('');
+                      setSortBy('name');
+                    },
+                  },
+                ]}
+              />
+            </div>
           </div>
         </div>
 
