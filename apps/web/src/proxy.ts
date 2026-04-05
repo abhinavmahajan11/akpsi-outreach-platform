@@ -7,7 +7,7 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 // Routes that do NOT require authentication
 const PUBLIC_PATHS = ['/auth'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
@@ -44,22 +44,22 @@ export async function middleware(request: NextRequest) {
 
   // Not authenticated → redirect to /auth (except for public paths)
   if (!user && !isPublicPath) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/auth';
-    return NextResponse.redirect(url);
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/auth';
+    return NextResponse.redirect(redirectUrl);
   }
 
   // Already authenticated → redirect away from /auth to dashboard
   if (user && isPublicPath) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
-    return NextResponse.redirect(url);
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = '/dashboard';
+    return NextResponse.redirect(redirectUrl);
   }
 
   return response;
 }
 
-// Run middleware on all routes except Next.js internals and static files
+// Run proxy on all routes except Next.js internals and static files
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
