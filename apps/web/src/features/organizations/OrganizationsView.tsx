@@ -25,7 +25,7 @@ export default function OrganizationsView({
   title = 'Organizations',
   subtitle = 'All tracked organizations across committees',
 }: OrganizationsViewProps) {
-  const { organizations } = useOrgs();
+  const { organizations, loading, error } = useOrgs();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<OutreachStatus | 'All'>('All');
 
@@ -42,6 +42,15 @@ export default function OrganizationsView({
       return matchesSearch && matchesStatus;
     });
   }, [organizations, searchQuery, activeStatus]);
+
+  if (error) {
+    return (
+      <div className="px-8 pt-8">
+        <p className="text-sm font-medium text-rose-600">Failed to load organizations</p>
+        <p className="text-xs text-slate-400 mt-1">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="px-8 pt-8 pb-16">
@@ -102,7 +111,13 @@ export default function OrganizationsView({
       </div>
 
       {/* List */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="space-y-2.5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-xl bg-white border border-slate-100 animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="space-y-2.5">
           {filtered.map((org) => (
             <OrgRow key={org.id} org={org} />

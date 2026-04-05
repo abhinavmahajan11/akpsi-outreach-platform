@@ -3,38 +3,50 @@
 /**
  * OrgsContext — single source of truth for all organization data.
  *
- * Phase 2: seeded from static mock data, mutated in local state.
- * Phase 3 upgrade path: replace useState initializer with a React Query
- * or SWR hook; replace mutations with API calls. The hook API stays identical.
+ * Phase 3: reads from Supabase on mount; mutations write to Supabase
+ * then update local state optimistically.
+ *
+ * Phase 4 upgrade path: wrap fetch calls in React Query / SWR for
+ * caching and background revalidation. The hook API stays identical.
  */
 
 import {
   createContext,
   useContext,
   useState,
+  useEffect,
   useCallback,
   type ReactNode,
 } from 'react';
-import { organizations as seedData } from '@/data/organizations';
 import type { Organization, Note, Reminder, ActivityItem } from '@/types';
+import {
+  fetchAllOrgs,
+  insertOrg,
+  insertNote,
+  insertReminder,
+  insertActivity,
+} from '@/lib/db/organizations';
 
 // ─── Context value shape ──────────────────────────────────────────────────────
 
 interface OrgsContextValue {
-  /** All organizations in current session */
   organizations: Organization[];
-  /** Look up a single org by id */
+  loading: boolean;
+  error: string | null;
+  /** Look up a single org by id (from local state — instant, no extra fetch). */
   getOrgById: (id: string) => Organization | undefined;
-  /** Add a new org (prepended to list) */
-  addOrg: (org: Organization) => void;
-  /** Shallow-merge updates into an org */
+  /** Add a new org — writes to DB then prepends to local list. Async so forms can await it. */
+  addOrg: (org: Organization) => Promise<void>;
+  /** Shallow-merge field updates into an org in local state only (DB update via updateOrgFields). */
   updateOrg: (orgId: string, updates: Partial<Organization>) => void;
-  /** Prepend a note to an org's notes array */
+  /** Prepend a note — writes to DB then updates local state. */
   addNote: (orgId: string, note: Note) => void;
-  /** Append a reminder to an org's reminders array */
+  /** Append a reminder — writes to DB then updates local state. */
   addReminder: (orgId: string, reminder: Reminder) => void;
-  /** Prepend an activity item; also updates lastContactedAt */
+  /** Prepend an activity and update lastContactedAt — writes to DB then updates local state. */
   logActivity: (orgId: string, item: ActivityItem) => void;
+  /** Manually re-fetch all orgs from Supabase (e.g. after an external mutation). */
+  refresh: () => void;
 }
 
 // ─── Context + hook ───────────────────────────────────────────────────────────
@@ -50,15 +62,46 @@ export function useOrgs(): OrgsContextValue {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function OrgsProvider({ children }: { children: ReactNode }) {
-  const [orgs, setOrgs] = useState<Organization[]>(seedData);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // ── Initial load ──────────────────────────────────────────────────────────
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    fetchAllOrgs()
+      .then(setOrgs)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // ── Derived helpers ───────────────────────────────────────────────────────
 
   const getOrgById = useCallback(
     (id: string) => orgs.find((o) => o.id === id),
     [orgs],
   );
 
-  const addOrg = useCallback((org: Organization) => {
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
+  const addOrg = useCallback(async (org: Organization) => {
+    // Optimistic: add to local state immediately so the UI responds fast
     setOrgs((prev) => [org, ...prev]);
+    try {
+      await insertOrg(org);
+    } catch (err) {
+      // Revert on failure and surface the error
+      setOrgs((prev) => prev.filter((o) => o.id !== org.id));
+      const msg = err instanceof Error ? err.message : 'Failed to save organization';
+      setError(msg);
+      throw err; // let the form catch it
+    }
   }, []);
 
   const updateOrg = useCallback(
@@ -71,10 +114,15 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
   );
 
   const addNote = useCallback((orgId: string, note: Note) => {
+    // Optimistic update
     setOrgs((prev) =>
       prev.map((o) =>
         o.id === orgId ? { ...o, notes: [note, ...o.notes] } : o,
       ),
+    );
+    // Async DB write (fire-and-forget; error logged to console)
+    insertNote(orgId, note).catch((err: Error) =>
+      console.error('addNote DB write failed:', err.message),
     );
   }, []);
 
@@ -85,6 +133,9 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           ? { ...o, reminders: [...o.reminders, reminder] }
           : o,
       ),
+    );
+    insertReminder(orgId, reminder).catch((err: Error) =>
+      console.error('addReminder DB write failed:', err.message),
     );
   }, []);
 
@@ -100,18 +151,24 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
+    insertActivity(orgId, item).catch((err: Error) =>
+      console.error('logActivity DB write failed:', err.message),
+    );
   }, []);
 
   return (
     <OrgsContext.Provider
       value={{
         organizations: orgs,
+        loading,
+        error,
         getOrgById,
         addOrg,
         updateOrg,
         addNote,
         addReminder,
         logActivity,
+        refresh: load,
       }}
     >
       {children}

@@ -46,7 +46,7 @@ const STATUSES: Array<{ label: string; value: OutreachStatus | 'All' }> = [
 ];
 
 export default function DashboardView() {
-  const { organizations } = useOrgs();
+  const { organizations, loading, error } = useOrgs();
   const [selectedOrgId, setSelectedOrgId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeType, setActiveType] = useState<OrganizationType | 'All'>('All');
@@ -144,6 +144,24 @@ export default function DashboardView() {
     });
   }, [organizations, searchQuery, activeType, activeCategoryTab, committeeFilter, statusFilter, sortBy]);
 
+  // ── Loading / error guards ──────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="text-center max-w-sm px-6">
+          <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-3">
+            <svg className="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+          </div>
+          <p className="text-sm font-medium text-slate-800 mb-1">Could not load organizations</p>
+          <p className="text-xs text-slate-400">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Page header — inside white card area */}
@@ -176,9 +194,20 @@ export default function DashboardView() {
 
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 mb-5">
-          {computedStats.map((stat) => (
-            <StatCard key={stat.id} stat={stat} />
-          ))}
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-xl bg-white border border-slate-100 shadow-sm p-4 animate-pulse"
+                >
+                  <div className="h-3 bg-slate-100 rounded w-1/2 mb-3" />
+                  <div className="h-7 bg-slate-100 rounded w-1/3 mb-2" />
+                  <div className="h-2.5 bg-slate-50 rounded w-2/3" />
+                </div>
+              ))
+            : computedStats.map((stat) => (
+                <StatCard key={stat.id} stat={stat} />
+              ))}
         </div>
       </div>
 

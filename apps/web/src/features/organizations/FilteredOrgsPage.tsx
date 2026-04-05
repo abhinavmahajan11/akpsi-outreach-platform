@@ -50,7 +50,7 @@ export default function FilteredOrgsPage({
   emptyDescription = 'No organizations match this view.',
   accentColor = 'border-[#0d1f3c]',
 }: FilteredOrgsPageProps) {
-  const { organizations } = useOrgs();
+  const { organizations, loading, error } = useOrgs();
   const [searchQuery, setSearchQuery] = useState('');
 
   const config = FILTER_CONFIG[filterKey];
@@ -71,6 +71,15 @@ export default function FilteredOrgsPage({
         org.assignedMember.toLowerCase().includes(q),
     );
   }, [baseOrgs, searchQuery]);
+
+  if (error) {
+    return (
+      <div className="px-8 pt-8">
+        <p className="text-sm font-medium text-rose-600">Failed to load data</p>
+        <p className="text-xs text-slate-400 mt-1">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="px-8 pt-8 pb-16">
@@ -145,7 +154,13 @@ export default function FilteredOrgsPage({
       </div>
 
       {/* List */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="space-y-2.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-16 rounded-xl bg-white border border-slate-100 animate-pulse" />
+          ))}
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="space-y-2.5">
           {filtered.map((org) => (
             <OrgRow key={org.id} org={org} />

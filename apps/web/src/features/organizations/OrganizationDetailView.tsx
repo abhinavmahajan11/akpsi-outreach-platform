@@ -20,7 +20,7 @@ interface OrganizationDetailViewProps {
 }
 
 export default function OrganizationDetailView({ orgId }: OrganizationDetailViewProps) {
-  const { getOrgById, addNote, addReminder, logActivity } = useOrgs();
+  const { getOrgById, addNote, addReminder, logActivity, loading, error } = useOrgs();
   const org = getOrgById(orgId);
 
   const primaryContact = org
@@ -40,6 +40,30 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
   function showToast(msg: string) {
     setToastMsg(msg);
     setToastOpen(true);
+  }
+
+  // Loading state — data hasn't arrived yet from Supabase
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-6 h-6 border-2 border-[#0d1f3c]/20 border-t-[#0d1f3c] rounded-full animate-spin" />
+          <p className="text-sm text-slate-400">Loading organization…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full min-h-[400px]">
+        <div className="text-center max-w-sm">
+          <p className="text-sm font-medium text-rose-600 mb-1">Failed to load data</p>
+          <p className="text-xs text-slate-400">{error}</p>
+        </div>
+      </div>
+    );
   }
 
   if (!org) notFound();

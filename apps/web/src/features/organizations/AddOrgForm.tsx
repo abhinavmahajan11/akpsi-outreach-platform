@@ -101,7 +101,7 @@ export default function AddOrgForm() {
     return Object.keys(errs).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
     setSaving(true);
@@ -152,8 +152,13 @@ export default function AddOrgForm() {
       ],
     };
 
-    addOrg(newOrg);
-    router.push(`/organizations/${id}`);
+    try {
+      await addOrg(newOrg);
+      router.push(`/organizations/${id}`);
+    } catch {
+      setErrors({ name: 'Failed to save — please check your connection and try again.' });
+      setSaving(false);
+    }
   }
 
   const isValid = name.trim().length > 0;
