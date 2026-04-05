@@ -212,7 +212,10 @@ export async function fetchOrgById(id: string): Promise<Organization | null> {
 // ─── Write operations ─────────────────────────────────────────────────────────
 
 /** Insert a new organization (with optional primary contact and first activity). */
-export async function insertOrg(org: Organization): Promise<void> {
+export async function insertOrg(
+  org: Organization,
+  createdByUserId?: string,
+): Promise<void> {
   // 1. Insert the org row
   const { error: orgError } = await supabase.from('organizations').insert({
     id: org.id,
@@ -230,6 +233,7 @@ export async function insertOrg(org: Organization): Promise<void> {
     website: org.website ?? null,
     next_step: org.nextStep,
     last_contacted_at: org.lastContactedAt ?? null,
+    ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
   });
 
   if (orgError) throw new Error(`insertOrg: ${orgError.message}`);
@@ -262,6 +266,7 @@ export async function insertOrg(org: Organization): Promise<void> {
       description: a.description,
       activity_date: a.date,
       author_name: a.authorName,
+      ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
     }));
     const { error: actError } = await supabase
       .from('activities')
@@ -274,6 +279,7 @@ export async function insertOrg(org: Organization): Promise<void> {
 export async function insertNote(
   orgId: string,
   note: Note,
+  createdByUserId?: string,
 ): Promise<void> {
   const { error } = await supabase.from('notes').insert({
     id: note.id,
@@ -281,6 +287,7 @@ export async function insertNote(
     content: note.content,
     author_name: note.authorName,
     created_at: note.createdAt,
+    ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
   });
   if (error) throw new Error(`insertNote: ${error.message}`);
 }
@@ -289,6 +296,7 @@ export async function insertNote(
 export async function insertReminder(
   orgId: string,
   reminder: Reminder,
+  createdByUserId?: string,
 ): Promise<void> {
   const { error } = await supabase.from('reminders').insert({
     id: reminder.id,
@@ -297,6 +305,7 @@ export async function insertReminder(
     due_date: reminder.dueDate,
     is_completed: reminder.isCompleted,
     assigned_to: reminder.assignedTo,
+    ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
   });
   if (error) throw new Error(`insertReminder: ${error.message}`);
 }
@@ -305,6 +314,7 @@ export async function insertReminder(
 export async function insertActivity(
   orgId: string,
   item: ActivityItem,
+  createdByUserId?: string,
 ): Promise<void> {
   const { error } = await supabase.from('activities').insert({
     id: item.id,
@@ -314,6 +324,7 @@ export async function insertActivity(
     description: item.description,
     activity_date: item.date,
     author_name: item.authorName,
+    ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
   });
   if (error) throw new Error(`insertActivity: ${error.message}`);
 }

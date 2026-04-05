@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import DropdownMenu from '@/components/ui/DropdownMenu';
+import { useAuth } from '@/context/AuthContext';
 
 const NOTIFICATIONS = [
   {
@@ -49,6 +50,7 @@ const QUICK_NAV_ITEMS = [
 ];
 
 export default function Topbar() {
+  const { displayName, initials, profile, signOut } = useAuth();
   const [notifOpen, setNotifOpen]   = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [quickNavOpen, setQuickNavOpen] = useState(false);
@@ -160,7 +162,7 @@ export default function Topbar() {
             }`}
             style={{ background: 'linear-gradient(135deg, #1e3a5f, #0d1f3c)' }}
           >
-            PN
+            {initials}
           </button>
 
           <DropdownMenu
@@ -170,14 +172,23 @@ export default function Topbar() {
             minWidth="min-w-[200px]"
             items={[
               {
-                label: 'Priya Nair',
+                label: displayName,
                 onClick: () => {},
                 icon: (
                   <div className="w-5 h-5 rounded-full bg-[#0d1f3c] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-[8px] font-bold">PN</span>
+                    <span className="text-white text-[8px] font-bold">{initials}</span>
                   </div>
                 ),
               },
+              ...(profile?.committee ? [{
+                label: profile.committee,
+                onClick: () => {},
+                icon: (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                ),
+              }] : []),
               {
                 label: 'My Profile',
                 href: '/profile',
@@ -211,7 +222,7 @@ export default function Topbar() {
                 label: 'Sign Out',
                 dividerBefore: true,
                 danger: true,
-                onClick: () => {},
+                onClick: signOut,
                 icon: (
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />

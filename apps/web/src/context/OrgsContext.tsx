@@ -26,6 +26,7 @@ import {
   insertReminder,
   insertActivity,
 } from '@/lib/db/organizations';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Context value shape ──────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export function useOrgs(): OrgsContextValue {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function OrgsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
     // Optimistic: add to local state immediately so the UI responds fast
     setOrgs((prev) => [org, ...prev]);
     try {
-      await insertOrg(org);
+      await insertOrg(org, user?.id);
     } catch (err) {
       // Revert on failure and surface the error
       setOrgs((prev) => prev.filter((o) => o.id !== org.id));
@@ -102,7 +104,7 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
       setError(msg);
       throw err; // let the form catch it
     }
-  }, []);
+  }, [user]);
 
   const updateOrg = useCallback(
     (orgId: string, updates: Partial<Organization>) => {
@@ -121,10 +123,10 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
       ),
     );
     // Async DB write (fire-and-forget; error logged to console)
-    insertNote(orgId, note).catch((err: Error) =>
+    insertNote(orgId, note, user?.id).catch((err: Error) =>
       console.error('addNote DB write failed:', err.message),
     );
-  }, []);
+  }, [user]);
 
   const addReminder = useCallback((orgId: string, reminder: Reminder) => {
     setOrgs((prev) =>
@@ -134,10 +136,10 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
-    insertReminder(orgId, reminder).catch((err: Error) =>
+    insertReminder(orgId, reminder, user?.id).catch((err: Error) =>
       console.error('addReminder DB write failed:', err.message),
     );
-  }, []);
+  }, [user]);
 
   const logActivity = useCallback((orgId: string, item: ActivityItem) => {
     setOrgs((prev) =>
@@ -151,10 +153,10 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
-    insertActivity(orgId, item).catch((err: Error) =>
+    insertActivity(orgId, item, user?.id).catch((err: Error) =>
       console.error('logActivity DB write failed:', err.message),
     );
-  }, []);
+  }, [user]);
 
   return (
     <OrgsContext.Provider

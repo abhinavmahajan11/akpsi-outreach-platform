@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import AppShell from '@/components/layout/AppShell';
+import { AuthProvider } from '@/context/AuthContext';
 import { OrgsProvider } from '@/context/OrgsContext';
 import './globals.css';
 
@@ -31,9 +31,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full`}
     >
       <body className="h-full antialiased">
-        <OrgsProvider>
-          <AppShell>{children}</AppShell>
-        </OrgsProvider>
+        {/*
+         * AuthProvider must wrap OrgsProvider so OrgsContext can access
+         * the current user when writing ownership fields to the database.
+         */}
+        <AuthProvider>
+          <OrgsProvider>{children}</OrgsProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useOrgs } from '@/context/OrgsContext';
+import { useAuth } from '@/context/AuthContext';
 import type {
   Organization,
   OrganizationType,
@@ -64,6 +65,7 @@ const STATUS_VALUES: Record<string, OutreachStatus> = {
 export default function AddOrgForm() {
   const router = useRouter();
   const { addOrg } = useOrgs();
+  const { displayName } = useAuth();
 
   // Basic info
   const [name, setName] = useState('');
@@ -147,7 +149,7 @@ export default function AddOrgForm() {
           title: 'Organization added to platform',
           description: 'Created via Add Organization form.',
           date: new Date().toISOString(),
-          authorName: assignedMember.trim() || 'Priya Nair',
+          authorName: assignedMember.trim() || displayName,
         },
       ],
     };

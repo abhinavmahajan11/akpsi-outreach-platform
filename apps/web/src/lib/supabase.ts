@@ -1,18 +1,21 @@
-import { createClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr';
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-if (!url || !key) {
-  throw new Error(
-    'Missing Supabase environment variables. ' +
-      'Make sure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in .env.local',
-  );
+/**
+ * Browser Supabase client — uses cookies via @supabase/ssr so the session
+ * persists across page reloads and is visible to server-side middleware.
+ *
+ * Call this inside client components or browser-only code.
+ * For server components / middleware, use createSupabaseServerClient().
+ */
+export function createSupabaseBrowserClient() {
+  return createBrowserClient(url, key);
 }
 
 /**
- * Single shared Supabase client.
- * Uses the public anon key — safe for client-side use.
- * Phase 4: add a server-side service-role client for admin operations.
+ * Singleton for client-side code that doesn't need a fresh client each render.
+ * Import this in the OrgsContext and other client-side data layers.
  */
-export const supabase = createClient(url, key);
+export const supabase = createSupabaseBrowserClient();
