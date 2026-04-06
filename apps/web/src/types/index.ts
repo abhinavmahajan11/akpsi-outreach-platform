@@ -114,4 +114,6 @@ export interface NavItem {
   icon: NavIconType;
   /** Renders a subtle divider above this item */
   dividerBefore?: boolean;
+  /** If true, hidden from members — only visible to admin/president/vice_president */
+  adminOnly?: boolean;
 }

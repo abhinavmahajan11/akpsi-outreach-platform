@@ -6,7 +6,11 @@ import SidebarNav from './SidebarNav';
 import { useAuth } from '@/context/AuthContext';
 
 export default function Sidebar() {
-  const { displayName, initials, profile, signOut } = useAuth();
+  const { displayName, initials, profile, signOut, isFullAccess } = useAuth();
+
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || isFullAccess,
+  );
 
   return (
     <aside className="w-[210px] flex-shrink-0 flex flex-col h-full bg-gradient-to-b from-[#0d1f3c] via-[#0f2444] to-[#0b1a31]">
@@ -39,13 +43,13 @@ export default function Sidebar() {
       <div className="mx-4 border-t border-white/[0.07]" />
 
       {/* Navigation */}
-      <SidebarNav items={navItems} />
+      <SidebarNav items={visibleNavItems} />
 
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Semester handoff */}
-      <div className="mx-3 mb-3">
+      {/* Semester handoff — full-access roles only */}
+      {isFullAccess && <div className="mx-3 mb-3">
         <Link
           href="/handoff"
           className="block border border-white/10 rounded-xl px-3 py-3 bg-white/5 hover:bg-white/10 transition-colors"
@@ -76,7 +80,7 @@ export default function Sidebar() {
             </div>
           </div>
         </Link>
-      </div>
+      </div>}
 
       {/* User section */}
       <div className="px-3 pb-4 border-t border-white/[0.07] pt-3">

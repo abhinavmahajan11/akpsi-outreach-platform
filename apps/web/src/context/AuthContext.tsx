@@ -23,6 +23,7 @@ import {
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { type Role, isFullAccess as checkFullAccess } from '@/lib/roles';
 
 // ─── Profile type (mirrors public.profiles table) ─────────────────────────────
 
@@ -31,7 +32,7 @@ export interface UserProfile {
   full_name: string;
   email: string;
   committee: string | null;
-  role: 'admin' | 'member';
+  role: Role;
   created_at: string;
 }
 
@@ -46,6 +47,8 @@ interface AuthContextValue {
   displayName: string;
   /** Two-character initials for avatar */
   initials: string;
+  /** True for admin, president, vice_president — false for member or unauthenticated */
+  isFullAccess: boolean;
 }
 
 // ─── Context + hook ───────────────────────────────────────────────────────────
@@ -131,10 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     'User';
 
   const initials = getInitials(displayName);
+  const isFullAccessUser = checkFullAccess(profile?.role);
 
   return (
     <AuthContext.Provider
-      value={{ user, profile, loading, signOut, displayName, initials }}
+      value={{ user, profile, loading, signOut, displayName, initials, isFullAccess: isFullAccessUser }}
     >
       {children}
     </AuthContext.Provider>

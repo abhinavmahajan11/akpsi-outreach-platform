@@ -14,6 +14,7 @@ import LogActivityModal from '@/features/activity/LogActivityModal';
 import DraftEmailModal from '@/features/email/DraftEmailModal';
 import Toast from '@/components/ui/Toast';
 import { useOrgs } from '@/context/OrgsContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface OrganizationDetailViewProps {
   orgId: string;
@@ -21,6 +22,7 @@ interface OrganizationDetailViewProps {
 
 export default function OrganizationDetailView({ orgId }: OrganizationDetailViewProps) {
   const { getOrgById, addNote, addReminder, logActivity, loading, error } = useOrgs();
+  const { displayName } = useAuth();
   const org = getOrgById(orgId);
 
   const primaryContact = org
@@ -433,7 +435,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
           addNote(org.id, {
             id: `note-${Date.now()}`,
             content,
-            authorName: 'Priya Nair',
+            authorName: displayName,
             createdAt: new Date().toISOString(),
           });
           showToast('Note added');
@@ -450,7 +452,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
             title,
             description,
             date: new Date().toISOString(),
-            authorName: 'Priya Nair',
+            authorName: displayName,
           });
           showToast('Activity logged');
         }}
