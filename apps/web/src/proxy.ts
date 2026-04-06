@@ -5,7 +5,7 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Routes that do NOT require authentication
-const PUBLIC_PATHS = ['/auth'];
+const PUBLIC_PATHS = ['/login', '/signup'];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({
@@ -42,14 +42,14 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-  // Not authenticated → redirect to /auth (except for public paths)
+  // Not authenticated → redirect to /login (except for public paths)
   if (!user && !isPublicPath) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = '/auth';
+    redirectUrl.pathname = '/login';
     return NextResponse.redirect(redirectUrl);
   }
 
-  // Already authenticated → redirect away from /auth to dashboard
+  // Already authenticated → redirect away from login/signup to dashboard
   if (user && isPublicPath) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = '/dashboard';

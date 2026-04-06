@@ -6,9 +6,9 @@ import { supabase } from '@/lib/supabase';
 
 type Mode = 'signin' | 'signup';
 
-export default function AuthForm() {
+export default function AuthForm({ initialMode = 'signin' }: { initialMode?: Mode }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>('signin');
+  const [mode, setMode] = useState<Mode>(initialMode);
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -96,8 +96,7 @@ export default function AuthForm() {
         setSuccess(
           'Account created! Check your email to confirm, then sign in.',
         );
-        setMode('signin');
-        resetForm();
+        router.push('/login');
       }
     }
   }
@@ -237,7 +236,7 @@ export default function AuthForm() {
             <>
               New to the platform?{' '}
               <button
-                onClick={() => { setMode('signup'); resetForm(); }}
+                onClick={() => router.push('/signup')}
                 className="font-medium text-[#0d1f3c] hover:underline"
               >
                 Create an account
@@ -247,7 +246,7 @@ export default function AuthForm() {
             <>
               Already have an account?{' '}
               <button
-                onClick={() => { setMode('signin'); resetForm(); }}
+                onClick={() => router.push('/login')}
                 className="font-medium text-[#0d1f3c] hover:underline"
               >
                 Sign in

@@ -1,9 +1,7 @@
-import AuthForm from '@/features/auth/AuthForm';
+import { redirect } from 'next/navigation';
 
-export const metadata = {
-  title: 'Sign In · AKPsi Outreach',
-};
-
+// Legacy route — proxy now redirects to /login, but keep this
+// so any hardcoded /auth links resolve cleanly.
 export default function AuthPage() {
-  return <AuthForm />;
+  redirect('/login');
 }
