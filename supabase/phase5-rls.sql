@@ -8,8 +8,8 @@
 -- Member access model:
 --   A member can see/write any record where ONE of these is true:
 --     (a) they personally created it (created_by_user_id = auth.uid())
---     (b) it has no owner yet (NULL — covers seed / legacy data)
---     (c) the parent organization's committee_owner matches their profile committee
+--     (b) the parent organization's committee_owner matches their profile committee
+--   NULL-owner (seed/legacy) rows are NOT visible to members.
 -- =============================================================================
 
 -- ─── 1. Expand profiles.role to support all four roles ───────────────────────
@@ -102,7 +102,6 @@ CREATE POLICY "orgs: member select"
   ON public.organizations FOR SELECT
   USING (
     created_by_user_id = auth.uid()
-    OR created_by_user_id IS NULL
     OR (get_my_committee() IS NOT NULL AND committee_owner = get_my_committee())
   );
 
@@ -120,7 +119,6 @@ CREATE POLICY "orgs: member update own"
     created_by_user_id = auth.uid()
     OR (get_my_committee() IS NOT NULL AND committee_owner = get_my_committee())
   );
-
 CREATE POLICY "orgs: member delete own"
   ON public.organizations FOR DELETE
   USING (created_by_user_id = auth.uid());
@@ -143,13 +141,11 @@ CREATE POLICY "notes: member select"
   ON public.notes FOR SELECT
   USING (
     created_by_user_id = auth.uid()
-    OR created_by_user_id IS NULL
     OR EXISTS (
       SELECT 1 FROM public.organizations o
       WHERE o.id = notes.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -164,7 +160,6 @@ CREATE POLICY "notes: member insert"
       WHERE o.id = notes.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -196,13 +191,11 @@ CREATE POLICY "reminders: member select"
   ON public.reminders FOR SELECT
   USING (
     created_by_user_id = auth.uid()
-    OR created_by_user_id IS NULL
     OR EXISTS (
       SELECT 1 FROM public.organizations o
       WHERE o.id = reminders.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -217,7 +210,6 @@ CREATE POLICY "reminders: member insert"
       WHERE o.id = reminders.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -249,13 +241,11 @@ CREATE POLICY "activities: member select"
   ON public.activities FOR SELECT
   USING (
     created_by_user_id = auth.uid()
-    OR created_by_user_id IS NULL
     OR EXISTS (
       SELECT 1 FROM public.organizations o
       WHERE o.id = activities.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -270,7 +260,6 @@ CREATE POLICY "activities: member insert"
       WHERE o.id = activities.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -305,7 +294,6 @@ CREATE POLICY "contacts: member select"
       WHERE o.id = contacts.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
@@ -320,7 +308,6 @@ CREATE POLICY "contacts: member insert"
       WHERE o.id = contacts.organization_id
         AND (
           o.created_by_user_id = auth.uid()
-          OR o.created_by_user_id IS NULL
           OR (get_my_committee() IS NOT NULL AND o.committee_owner = get_my_committee())
         )
     )
