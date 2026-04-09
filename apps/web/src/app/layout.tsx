@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { AuthProvider } from '@/context/AuthContext';
 import { OrgsProvider } from '@/context/OrgsContext';
+import { CalendarProvider } from '@/context/CalendarContext';
 import './globals.css';
 
 const geistSans = Geist({
@@ -36,7 +37,9 @@ export default function RootLayout({
          * the current user when writing ownership fields to the database.
          */}
         <AuthProvider>
-          <OrgsProvider>{children}</OrgsProvider>
+          <OrgsProvider>
+            <CalendarProvider>{children}</CalendarProvider>
+          </OrgsProvider>
         </AuthProvider>
       </body>
     </html>

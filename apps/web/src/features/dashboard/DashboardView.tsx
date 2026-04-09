@@ -8,6 +8,7 @@ import OrganizationCard from '@/features/organizations/OrganizationCard';
 import OrgCommandPanel from './OrgCommandPanel';
 import DropdownMenu from '@/components/ui/DropdownMenu';
 import { useOrgs } from '@/context/OrgsContext';
+import UpcomingStrip from '@/features/calendar/UpcomingStrip';
 
 const TYPE_FILTERS: Array<{ label: string; value: OrganizationType | 'All' }> =
   [
@@ -209,6 +210,11 @@ export default function DashboardView() {
                 <StatCard key={stat.id} stat={stat} />
               ))}
         </div>
+      </div>
+
+      {/* Upcoming events strip */}
+      <div className="px-6">
+        <UpcomingStrip />
       </div>
 
       {/* Organizations workspace */}

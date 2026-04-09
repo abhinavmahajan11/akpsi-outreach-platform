@@ -97,6 +97,37 @@ export interface QuickAction {
   description: string;
 }
 
+export type EventType =
+  | 'follow_up'
+  | 'meeting'
+  | 'recruiter_call'
+  | 'sponsor_checkin'
+  | 'workshop_planning'
+  | 'service_partner_meeting'
+  | 'deadline'
+  | 'general_task';
+
+export type EventStatus = 'scheduled' | 'completed' | 'cancelled';
+
+export interface CalendarEvent {
+  id: string;
+  organizationId: string | null;
+  /** Denormalized from the joined organizations row — populated at fetch time. */
+  organizationName: string | null;
+  title: string;
+  description: string;
+  eventType: EventType;
+  startAt: string;   // ISO timestamp (UTC)
+  endAt: string | null;
+  allDay: boolean;
+  location: string;
+  meetingLink: string;
+  assignedToUserId: string | null;
+  createdByUserId: string;
+  status: EventStatus;
+  createdAt: string;
+}
+
 export type NavIconType =
   | 'dashboard'
   | 'organizations'
@@ -106,7 +137,8 @@ export type NavIconType =
   | 'handoff'
   | 'follow-ups'
   | 'active-partners'
-  | 'pending';
+  | 'pending'
+  | 'calendar';
 
 export interface NavItem {
   label: string;
