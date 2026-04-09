@@ -338,6 +338,71 @@ export async function completeReminder(reminderId: string): Promise<void> {
   if (error) throw new Error(`completeReminder: ${error.message}`);
 }
 
+/** Delete an activity log entry. */
+export async function deleteActivity(activityId: string): Promise<void> {
+  const { error } = await supabase
+    .from('activities')
+    .delete()
+    .eq('id', activityId);
+  if (error) throw new Error(`deleteActivity: ${error.message}`);
+}
+
+/** Delete a note. */
+export async function deleteNote(noteId: string): Promise<void> {
+  const { error } = await supabase
+    .from('notes')
+    .delete()
+    .eq('id', noteId);
+  if (error) throw new Error(`deleteNote: ${error.message}`);
+}
+
+/** Delete a reminder. */
+export async function deleteReminder(reminderId: string): Promise<void> {
+  const { error } = await supabase
+    .from('reminders')
+    .delete()
+    .eq('id', reminderId);
+  if (error) throw new Error(`deleteReminder: ${error.message}`);
+}
+
+/** Insert a standalone contact row for an existing organization. */
+export async function insertContact(
+  orgId: string,
+  contact: Contact,
+  createdByUserId?: string,
+): Promise<void> {
+  // If this contact is primary, demote any existing primary contacts first
+  if (contact.isPrimary) {
+    await supabase
+      .from('contacts')
+      .update({ is_primary: false })
+      .eq('organization_id', orgId)
+      .eq('is_primary', true);
+  }
+
+  const { error } = await supabase.from('contacts').insert({
+    id: contact.id,
+    organization_id: orgId,
+    name: contact.name,
+    title: contact.title,
+    email: contact.email,
+    phone: contact.phone ?? null,
+    linkedin_url: contact.linkedIn ?? null,
+    is_primary: contact.isPrimary,
+    ...(createdByUserId ? { created_by_user_id: createdByUserId } : {}),
+  });
+  if (error) throw new Error(`insertContact: ${error.message}`);
+}
+
+/** Delete a contact by id. */
+export async function deleteContact(contactId: string): Promise<void> {
+  const { error } = await supabase
+    .from('contacts')
+    .delete()
+    .eq('id', contactId);
+  if (error) throw new Error(`deleteContact: ${error.message}`);
+}
+
 /** Update top-level org fields (e.g. status, nextStep, lastContactedAt). */
 export async function updateOrgFields(
   orgId: string,

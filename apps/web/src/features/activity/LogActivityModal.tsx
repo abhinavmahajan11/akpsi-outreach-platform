@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from '@/components/ui/Modal';
 
 const ACTIVITY_TYPES = [
@@ -16,6 +16,10 @@ interface LogActivityModalProps {
   onClose: () => void;
   onSave: (data: { type: string; title: string; description: string }) => void;
   orgName?: string;
+  /** Pre-select an activity type (default: 'email') */
+  defaultType?: string;
+  /** Pre-fill the title/summary field */
+  defaultTitle?: string;
 }
 
 export default function LogActivityModal({
@@ -23,16 +27,28 @@ export default function LogActivityModal({
   onClose,
   onSave,
   orgName,
+  defaultType = 'email',
+  defaultTitle = '',
 }: LogActivityModalProps) {
-  const [type, setType] = useState('email');
-  const [title, setTitle] = useState('');
+  const [type, setType] = useState(defaultType);
+  const [title, setTitle] = useState(defaultTitle);
   const [description, setDescription] = useState('');
+
+  // Re-apply defaults when modal opens (handles re-use with different defaults)
+  useEffect(() => {
+    if (open) {
+      setType(defaultType);
+      setTitle(defaultTitle);
+      setDescription('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   function handleSave() {
     if (!title.trim()) return;
     onSave({ type, title: title.trim(), description: description.trim() });
-    setType('email');
-    setTitle('');
+    setType(defaultType);
+    setTitle(defaultTitle);
     setDescription('');
     onClose();
   }

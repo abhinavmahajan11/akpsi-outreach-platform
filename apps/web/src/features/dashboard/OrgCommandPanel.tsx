@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { Organization } from '@/types';
 import { useOrgs } from '@/context/OrgsContext';
+import { useAuth } from '@/context/AuthContext';
 import ReminderModal from '@/features/reminders/ReminderModal';
 import AddNoteModal from '@/features/notes/AddNoteModal';
 import LogActivityModal from '@/features/activity/LogActivityModal';
@@ -53,7 +54,8 @@ interface OrgCommandPanelProps {
 }
 
 export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
-  const { addNote, addReminder, logActivity } = useOrgs();
+  const { addNote, addReminder, logActivity, changeOrgStatus } = useOrgs();
+  const { displayName } = useAuth();
   const status = statusStyles[org.status];
   const primaryContact = org.contacts.find((c) => c.isPrimary) ?? org.contacts[0];
   const openReminders = org.reminders.filter((r) => !r.isCompleted);
@@ -72,6 +74,21 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
   function showToast(msg: string) {
     setToastMsg(msg);
     setToastOpen(true);
+  }
+
+  function handleEmailSent(subject: string) {
+    logActivity(org.id, {
+      id: `act-${Date.now()}`,
+      type: 'email',
+      title: subject || `Email to ${primaryContact?.name ?? org.name}`,
+      description: `Outreach email sent${primaryContact ? ` to ${primaryContact.name}` : ''}.`,
+      date: new Date().toISOString(),
+      authorName: displayName,
+    });
+    if (org.status === 'no_contact') {
+      changeOrgStatus(org.id, 'pending_response');
+    }
+    showToast('Email logged as sent');
   }
 
   return (
@@ -345,10 +362,11 @@ export default function OrgCommandPanel({ org }: OrgCommandPanelProps) {
       <DraftEmailModal
         open={draftOpen}
         onClose={() => setDraftOpen(false)}
+        orgId={org.id}
         orgName={org.name}
         contactName={primaryContact?.name ?? 'there'}
         contactEmail={primaryContact?.email}
-        onCopy={() => showToast('Email copied to clipboard')}
+        onMarkSent={(subject) => handleEmailSent(subject)}
       />
 
       <Toast
