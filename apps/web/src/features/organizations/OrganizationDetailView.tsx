@@ -7,22 +7,30 @@ import StatusBadge from '@/components/ui/StatusBadge';
 import TagBadge from '@/components/ui/TagBadge';
 import SectionHeader from '@/components/ui/SectionHeader';
 import OrgLogo from '@/components/ui/OrgLogo';
-import ActivityTimeline from '@/features/activity/ActivityTimeline';
 import ReminderModal from '@/features/reminders/ReminderModal';
-import AddNoteModal from '@/features/notes/AddNoteModal';
 import LogActivityModal from '@/features/activity/LogActivityModal';
+import UnifiedTimeline from '@/features/timeline/UnifiedTimeline';
+import AddContactModal from '@/features/contacts/AddContactModal';
 import DraftEmailModal from '@/features/email/DraftEmailModal';
 import Toast from '@/components/ui/Toast';
+import OrgEventsSection from '@/features/calendar/OrgEventsSection';
+import EventModal from '@/features/calendar/EventModal';
 import { useOrgs } from '@/context/OrgsContext';
 import { useAuth } from '@/context/AuthContext';
+import { useCalendar } from '@/context/CalendarContext';
 
 interface OrganizationDetailViewProps {
   orgId: string;
 }
 
 export default function OrganizationDetailView({ orgId }: OrganizationDetailViewProps) {
-  const { getOrgById, addNote, addReminder, logActivity, loading, error } = useOrgs();
+  const {
+    getOrgById, addNote, addReminder, logActivity, changeOrgStatus,
+    deleteActivity, deleteNote, deleteReminder, addContact, deleteContact,
+    loading, error,
+  } = useOrgs();
   const { displayName } = useAuth();
+  const { getEventsByOrg } = useCalendar();
   const org = getOrgById(orgId);
 
   const primaryContact = org
@@ -31,9 +39,11 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
 
   // Modal open states
   const [reminderOpen, setReminderOpen] = useState(false);
-  const [noteOpen, setNoteOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [followupOpen, setFollowupOpen] = useState(false);
+  const [addContactOpen, setAddContactOpen] = useState(false);
 
   // Toast
   const [toastMsg, setToastMsg] = useState('');
@@ -42,6 +52,25 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
   function showToast(msg: string) {
     setToastMsg(msg);
     setToastOpen(true);
+  }
+
+  function handleEmailSent(subject: string) {
+    if (!org) return;
+    logActivity(org.id, {
+      id: `act-${Date.now()}`,
+      type: 'email',
+      title: subject || `Email to ${primaryContact?.name ?? org.name}`,
+      description: `Outreach email sent${primaryContact ? ` to ${primaryContact.name}` : ''}${primaryContact?.email ? ` (${primaryContact.email})` : ''}.`,
+      date: new Date().toISOString(),
+      authorName: displayName,
+    });
+    // Auto-advance status when org hasn't been contacted yet
+    if (org.status === 'no_contact') {
+      changeOrgStatus(org.id, 'pending_response');
+    }
+    showToast('Email logged as sent');
+    // Offer follow-up scheduling
+    setFollowupOpen(true);
   }
 
   // Loading state — data hasn't arrived yet from Supabase
@@ -183,7 +212,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                 onClick={() => setDraftOpen(true)}
                 className="rounded-lg bg-[#0d1f3c] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1e3a5f] transition-colors"
               >
-                Draft Email
+                Compose Email
               </button>
               <button
                 onClick={() => setLogOpen(true)}
@@ -206,7 +235,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                 subtitle={`${org.contacts.length} contact${org.contacts.length !== 1 ? 's' : ''} on file`}
                 action={
                   <button
-                    onClick={() => showToast('Contact management coming soon')}
+                    onClick={() => setAddContactOpen(true)}
                     className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]"
                   >
                     Add contact
@@ -214,102 +243,93 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                 }
               />
               {org.contacts.length > 0 ? (
-                <div className="mt-4 space-y-3">
+                <div className="mt-4 space-y-2.5">
                   {org.contacts.map((contact) => (
                     <div
                       key={contact.id}
-                      className="flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3"
+                      className="group flex items-start gap-3 rounded-xl bg-slate-50 px-4 py-3 hover:bg-slate-100/80 transition-colors"
                     >
                       <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center flex-shrink-0 text-xs font-semibold text-slate-600">
-                        {contact.name
-                          .split(' ')
-                          .map((n) => n[0])
-                          .join('')}
+                        {contact.name.split(' ').map((n) => n[0]).join('')}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-slate-800">
-                            {contact.name}
-                          </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-800">{contact.name}</p>
                           {contact.isPrimary && (
                             <span className="rounded-full bg-[#0d1f3c]/8 text-[#0d1f3c] text-[10px] font-medium px-2 py-0.5">
                               Primary
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500">{contact.title}</p>
-                        <div className="mt-1.5 flex items-center gap-3">
-                          <a
-                            href={`mailto:${contact.email}`}
-                            className="text-xs text-blue-600 hover:underline"
-                          >
-                            {contact.email}
-                          </a>
+                        <p className="text-xs text-slate-500 mt-0.5">{contact.title}</p>
+                        <div className="mt-1.5 flex items-center flex-wrap gap-x-3 gap-y-1">
+                          {contact.email && (
+                            <a href={`mailto:${contact.email}`} className="text-xs text-blue-600 hover:underline">
+                              {contact.email}
+                            </a>
+                          )}
                           {contact.phone && (
-                            <span className="text-xs text-slate-500">
-                              {contact.phone}
-                            </span>
+                            <span className="text-xs text-slate-500">{contact.phone}</span>
+                          )}
+                          {contact.linkedIn && (
+                            <a
+                              href={contact.linkedIn.startsWith('http') ? contact.linkedIn : `https://${contact.linkedIn}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              LinkedIn
+                            </a>
                           )}
                         </div>
                       </div>
+                      <button
+                        onClick={() => deleteContact(org.id, contact.id)}
+                        title="Remove contact"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 p-1 rounded text-slate-300 hover:text-rose-500 hover:bg-rose-50"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                      </button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="mt-4 text-sm text-slate-400">
-                  No contacts added yet. Add a contact to get started.
-                </p>
+                <button
+                  onClick={() => setAddContactOpen(true)}
+                  className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-5 text-sm text-slate-400 hover:border-[#0d1f3c]/30 hover:text-[#0d1f3c]/60 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add first contact
+                </button>
               )}
             </div>
 
-            {/* Notes */}
+            {/* Unified Timeline (activities + notes + calendar events) */}
             <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-6 py-5">
               <SectionHeader
-                title="Notes"
-                subtitle={`${org.notes.length} note${org.notes.length !== 1 ? 's' : ''}`}
-                action={
-                  <button
-                    onClick={() => setNoteOpen(true)}
-                    className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f]"
-                  >
-                    Add note
-                  </button>
-                }
-              />
-              {org.notes.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {org.notes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="rounded-xl bg-slate-50 px-4 py-3.5"
-                    >
-                      <p className="text-sm text-slate-700 leading-relaxed">
-                        {note.content}
-                      </p>
-                      <p className="mt-2 text-[11px] text-slate-400">
-                        {note.authorName} ·{' '}
-                        {new Date(note.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-slate-400">No notes yet.</p>
-              )}
-            </div>
-
-            {/* Relationship timeline */}
-            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-6 py-5">
-              <SectionHeader
-                title="Relationship Timeline"
-                subtitle="Full outreach history"
+                title="Timeline"
+                subtitle="Activities, notes &amp; scheduled events"
               />
               <div className="mt-4">
-                <ActivityTimeline items={org.recentActivity} />
+                <UnifiedTimeline
+                  org={org}
+                  calendarEvents={getEventsByOrg(org.id)}
+                  onAddNote={(content) => {
+                    addNote(org.id, {
+                      id: `note-${Date.now()}`,
+                      content,
+                      authorName: displayName,
+                      createdAt: new Date().toISOString(),
+                    });
+                    showToast('Note added');
+                  }}
+                  onDeleteActivity={(id) => deleteActivity(org.id, id)}
+                  onDeleteNote={(id) => deleteNote(org.id, id)}
+                />
               </div>
             </div>
           </div>
@@ -334,7 +354,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                   {org.reminders.map((reminder) => (
                     <div
                       key={reminder.id}
-                      className={`rounded-xl px-3.5 py-3 ${
+                      className={`group rounded-xl px-3.5 py-3 ${
                         reminder.isCompleted
                           ? 'bg-slate-50 opacity-50'
                           : 'bg-amber-50 ring-1 ring-amber-100'
@@ -348,7 +368,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                               : 'border-amber-400'
                           }`}
                         />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p
                             className={`text-xs font-medium leading-snug ${
                               reminder.isCompleted
@@ -368,6 +388,15 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                             {reminder.assignedTo}
                           </p>
                         </div>
+                        <button
+                          onClick={() => deleteReminder(org.id, reminder.id)}
+                          title="Delete reminder"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-1 rounded text-slate-300 hover:text-rose-500 hover:bg-rose-50/60"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -379,26 +408,29 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
               )}
             </div>
 
+            {/* Scheduled events */}
+            <OrgEventsSection orgId={org.id} orgName={org.name} />
+
             {/* Quick actions */}
             <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-5 py-5">
               <SectionHeader title="Actions" />
               <div className="mt-3 space-y-2">
                 <ActionRow
-                  label="Send Follow-Up Email"
+                  label="Compose Email"
+                  accent
                   onClick={() => setDraftOpen(true)}
+                />
+                <ActionRow
+                  label="Log Reply Received"
+                  onClick={() => setReplyOpen(true)}
                 />
                 <ActionRow
                   label="Log Outreach Activity"
                   onClick={() => setLogOpen(true)}
                 />
                 <ActionRow
-                  label="Draft Email with AI"
-                  accent
-                  onClick={() => setDraftOpen(true)}
-                />
-                <ActionRow
-                  label="Update Status"
-                  onClick={() => showToast('Status update coming soon')}
+                  label="Schedule Follow-Up"
+                  onClick={() => setFollowupOpen(true)}
                 />
                 <ActionRow
                   label="Add to Reminders"
@@ -427,20 +459,6 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
           showToast('Reminder saved');
         }}
       />
-      <AddNoteModal
-        open={noteOpen}
-        onClose={() => setNoteOpen(false)}
-        orgName={org.name}
-        onSave={(content) => {
-          addNote(org.id, {
-            id: `note-${Date.now()}`,
-            content,
-            authorName: displayName,
-            createdAt: new Date().toISOString(),
-          });
-          showToast('Note added');
-        }}
-      />
       <LogActivityModal
         open={logOpen}
         onClose={() => setLogOpen(false)}
@@ -460,10 +478,47 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
       <DraftEmailModal
         open={draftOpen}
         onClose={() => setDraftOpen(false)}
+        orgId={org.id}
         orgName={org.name}
         contactName={primaryContact?.name ?? 'there'}
         contactEmail={primaryContact?.email}
-        onCopy={() => showToast('Email copied to clipboard')}
+        onMarkSent={(subject) => handleEmailSent(subject)}
+      />
+      <LogActivityModal
+        open={replyOpen}
+        onClose={() => setReplyOpen(false)}
+        orgName={org.name}
+        defaultType="email"
+        defaultTitle={`Reply from ${primaryContact?.name ?? org.name}`}
+        onSave={({ type, title, description }) => {
+          logActivity(org.id, {
+            id: `act-${Date.now()}`,
+            type: type as 'email' | 'call' | 'meeting' | 'note' | 'follow_up',
+            title,
+            description,
+            date: new Date().toISOString(),
+            authorName: displayName,
+          });
+          showToast('Reply logged');
+        }}
+      />
+
+      <EventModal
+        open={followupOpen}
+        onClose={() => setFollowupOpen(false)}
+        defaultType="follow_up"
+        defaultOrgId={org.id}
+      />
+
+      <AddContactModal
+        open={addContactOpen}
+        onClose={() => setAddContactOpen(false)}
+        orgName={org.name}
+        defaultPrimary={org.contacts.length === 0}
+        onSave={(contact) => {
+          addContact(org.id, contact);
+          showToast('Contact added');
+        }}
       />
 
       <Toast

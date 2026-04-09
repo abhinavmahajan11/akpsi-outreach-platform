@@ -1,9 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { navItems } from '@/constants/navigation';
 import SidebarNav from './SidebarNav';
 import { useAuth } from '@/context/AuthContext';
+import QuickAddModal from '@/features/organizations/QuickAddModal';
 
 export default function Sidebar() {
   const { displayName, initials, profile, signOut, isFullAccess } = useAuth();
@@ -11,6 +13,7 @@ export default function Sidebar() {
   const visibleNavItems = navItems.filter(
     (item) => !item.adminOnly || isFullAccess,
   );
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   return (
     <aside className="w-[210px] flex-shrink-0 flex flex-col h-full bg-gradient-to-b from-[#0d1f3c] via-[#0f2444] to-[#0b1a31]">
@@ -41,6 +44,24 @@ export default function Sidebar() {
 
       {/* Divider */}
       <div className="mx-4 border-t border-white/[0.07]" />
+
+      {/* Quick Add button */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => setQuickAddOpen(true)}
+          className="w-full flex items-center gap-2.5 rounded-xl bg-white/[0.07] hover:bg-white/[0.12] border border-white/[0.09] px-3 py-2 transition-colors group"
+        >
+          <div className="w-5 h-5 rounded-md bg-[#c9a84c]/20 flex items-center justify-center flex-shrink-0">
+            <svg className="w-3 h-3 text-[#c9a84c]" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </div>
+          <span className="text-white/70 group-hover:text-white/90 text-[12px] font-medium transition-colors">
+            Quick Add
+          </span>
+          <span className="ml-auto text-white/25 text-[10px] font-mono group-hover:text-white/50 transition-colors">⌘K</span>
+        </button>
+      </div>
 
       {/* Navigation */}
       <SidebarNav items={visibleNavItems} />
@@ -117,6 +138,7 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
+      <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </aside>
   );
 }

@@ -18,13 +18,19 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import type { Organization, Note, Reminder, ActivityItem } from '@/types';
+import type { Organization, Note, Reminder, ActivityItem, OutreachStatus, Contact } from '@/types';
 import {
   fetchAllOrgs,
   insertOrg,
   insertNote,
   insertReminder,
   insertActivity,
+  insertContact as insertContactDB,
+  deleteContact as deleteContactDB,
+  updateOrgFields,
+  deleteActivity as deleteActivityDB,
+  deleteNote as deleteNoteDB,
+  deleteReminder as deleteReminderDB,
 } from '@/lib/db/organizations';
 import { useAuth } from '@/context/AuthContext';
 
@@ -46,6 +52,18 @@ interface OrgsContextValue {
   addReminder: (orgId: string, reminder: Reminder) => void;
   /** Prepend an activity and update lastContactedAt — writes to DB then updates local state. */
   logActivity: (orgId: string, item: ActivityItem) => void;
+  /** Update org status both locally and in the DB. */
+  changeOrgStatus: (orgId: string, status: OutreachStatus) => void;
+  /** Remove an activity entry locally and from the DB. */
+  deleteActivity: (orgId: string, activityId: string) => void;
+  /** Remove a note locally and from the DB. */
+  deleteNote: (orgId: string, noteId: string) => void;
+  /** Remove a reminder locally and from the DB. */
+  deleteReminder: (orgId: string, reminderId: string) => void;
+  /** Add a contact to an org — writes to DB then updates local state. If isPrimary, demotes existing primaries. */
+  addContact: (orgId: string, contact: Contact) => void;
+  /** Remove a contact locally and from the DB. */
+  deleteContact: (orgId: string, contactId: string) => void;
   /** Manually re-fetch all orgs from Supabase (e.g. after an external mutation). */
   refresh: () => void;
 }
@@ -156,7 +174,90 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
     insertActivity(orgId, item, user?.id).catch((err: Error) =>
       console.error('logActivity DB write failed:', err.message),
     );
+    // Also persist last_contacted_at to the organizations row
+    updateOrgFields(orgId, { last_contacted_at: item.date }).catch((err: Error) =>
+      console.error('logActivity last_contacted_at update failed:', err.message),
+    );
   }, [user]);
+
+  const changeOrgStatus = useCallback((orgId: string, status: OutreachStatus) => {
+    setOrgs((prev) =>
+      prev.map((o) => (o.id === orgId ? { ...o, status } : o)),
+    );
+    updateOrgFields(orgId, { status }).catch((err: Error) =>
+      console.error('changeOrgStatus DB write failed:', err.message),
+    );
+  }, []);
+
+  const deleteActivity = useCallback((orgId: string, activityId: string) => {
+    setOrgs((prev) =>
+      prev.map((o) => {
+        if (o.id !== orgId) return o;
+        const remaining = o.recentActivity.filter((a) => a.id !== activityId);
+        // Recompute lastContactedAt from the next most-recent activity
+        const newLastContacted = remaining.length > 0 ? remaining[0].date : undefined;
+        return { ...o, recentActivity: remaining, lastContactedAt: newLastContacted };
+      }),
+    );
+    deleteActivityDB(activityId).catch((err: Error) =>
+      console.error('deleteActivity DB write failed:', err.message),
+    );
+  }, []);
+
+  const deleteNote = useCallback((orgId: string, noteId: string) => {
+    setOrgs((prev) =>
+      prev.map((o) =>
+        o.id === orgId
+          ? { ...o, notes: o.notes.filter((n) => n.id !== noteId) }
+          : o,
+      ),
+    );
+    deleteNoteDB(noteId).catch((err: Error) =>
+      console.error('deleteNote DB write failed:', err.message),
+    );
+  }, []);
+
+  const deleteReminder = useCallback((orgId: string, reminderId: string) => {
+    setOrgs((prev) =>
+      prev.map((o) =>
+        o.id === orgId
+          ? { ...o, reminders: o.reminders.filter((r) => r.id !== reminderId) }
+          : o,
+      ),
+    );
+    deleteReminderDB(reminderId).catch((err: Error) =>
+      console.error('deleteReminder DB write failed:', err.message),
+    );
+  }, []);
+
+  const addContact = useCallback((orgId: string, contact: Contact) => {
+    setOrgs((prev) =>
+      prev.map((o) => {
+        if (o.id !== orgId) return o;
+        // If new contact is primary, demote existing primaries
+        const updatedExisting = contact.isPrimary
+          ? o.contacts.map((c) => ({ ...c, isPrimary: false }))
+          : o.contacts;
+        return { ...o, contacts: [...updatedExisting, contact] };
+      }),
+    );
+    insertContactDB(orgId, contact, user?.id).catch((err: Error) =>
+      console.error('addContact DB write failed:', err.message),
+    );
+  }, [user]);
+
+  const deleteContact = useCallback((orgId: string, contactId: string) => {
+    setOrgs((prev) =>
+      prev.map((o) =>
+        o.id === orgId
+          ? { ...o, contacts: o.contacts.filter((c) => c.id !== contactId) }
+          : o,
+      ),
+    );
+    deleteContactDB(contactId).catch((err: Error) =>
+      console.error('deleteContact DB write failed:', err.message),
+    );
+  }, []);
 
   return (
     <OrgsContext.Provider
@@ -170,6 +271,12 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
         addNote,
         addReminder,
         logActivity,
+        changeOrgStatus,
+        deleteActivity,
+        deleteNote,
+        deleteReminder,
+        addContact,
+        deleteContact,
         refresh: load,
       }}
     >
