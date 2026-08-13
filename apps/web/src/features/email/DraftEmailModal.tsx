@@ -51,6 +51,8 @@ export default function DraftEmailModal({
   const [draftSaved, setDraftSaved] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Load saved draft (or reset to defaults) each time the modal opens
   useEffect(() => {
@@ -70,6 +72,7 @@ export default function DraftEmailModal({
     }
     setDraftSaved(false);
     setCopied(false);
+    setAiError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, orgId]);
 
@@ -104,6 +107,31 @@ export default function DraftEmailModal({
     onClose();
   }
 
+  async function handleGenerateAI() {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/generate-email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ orgName, contactName }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error || 'Failed to generate email. Please try again.');
+        return;
+      }
+      // Preserve whatever the user already has if the AI didn't return a piece
+      // (e.g. subject is '' when the model's JSON output couldn't be parsed).
+      if (data.subject) setSubject(data.subject);
+      if (data.body) setBody(data.body);
+    } catch {
+      setAiError('Could not reach the AI service. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   return (
     <Modal open={open} onClose={onClose} title="Compose Email" maxWidth="max-w-xl">
       <div className="space-y-3">
@@ -116,15 +144,28 @@ export default function DraftEmailModal({
               {contactEmail ? ` · ${contactEmail}` : ''}
             </span>
           </p>
-          {hasDraft && (
+          <div className="flex items-center gap-3">
             <button
-              onClick={handleClearDraft}
-              className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors"
+              onClick={handleGenerateAI}
+              disabled={aiLoading}
+              className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f] transition-colors disabled:opacity-50 disabled:cursor-wait"
             >
-              Clear draft
+              {aiLoading ? 'Generating…' : '✨ Generate with AI'}
             </button>
-          )}
+            {hasDraft && (
+              <button
+                onClick={handleClearDraft}
+                className="text-[10px] text-slate-400 hover:text-rose-500 transition-colors"
+              >
+                Clear draft
+              </button>
+            )}
+          </div>
         </div>
+
+        {aiError && (
+          <p className="text-[11px] text-rose-500">{aiError}</p>
+        )}
 
         {/* Subject */}
         <div>
