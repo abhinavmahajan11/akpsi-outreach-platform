@@ -76,6 +76,29 @@ export interface Organization {
   website?: string;
   description: string;
   lastContactedAt?: string;
+  /** Free-form context for incoming leadership. Preserved across semesters. */
+  handoffNote?: string;
+}
+
+export type TemplateCategory =
+  | 'sponsorship_outreach'
+  | 'recruiter_outreach'
+  | 'workshop_speaker'
+  | 'service_partnership'
+  | 'follow_up'
+  | 'thank_you'
+  | 'best_practices';
+
+export interface Template {
+  id: string;
+  title: string;
+  description: string;
+  body: string;
+  category: TemplateCategory;
+  isDefault: boolean;
+  createdByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type StatIconType = 'organizations' | 'pending' | 'followups' | 'partners';

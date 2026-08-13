@@ -27,7 +27,7 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
   const {
     getOrgById, addNote, addReminder, logActivity, changeOrgStatus,
     deleteActivity, deleteNote, deleteReminder, addContact, deleteContact,
-    loading, error,
+    updateHandoffNote, loading, error,
   } = useOrgs();
   const { displayName } = useAuth();
   const { getEventsByOrg } = useCalendar();
@@ -53,6 +53,10 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
     setToastMsg(msg);
     setToastOpen(true);
   }
+
+  // Handoff note inline edit
+  const [handoffEditing, setHandoffEditing] = useState(false);
+  const [handoffDraft, setHandoffDraft] = useState('');
 
   function handleEmailSent(subject: string) {
     if (!org) return;
@@ -437,6 +441,82 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
                   onClick={() => setReminderOpen(true)}
                 />
               </div>
+            </div>
+          </div>
+
+          {/* Right column (1/3) — Handoff Context */}
+          <div className="col-span-1 space-y-5">
+            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-100 px-5 py-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-slate-900">Handoff Context</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Notes for the next person managing this org</p>
+                </div>
+                {!handoffEditing && (
+                  <button
+                    onClick={() => {
+                      setHandoffDraft(org.handoffNote ?? '');
+                      setHandoffEditing(true);
+                    }}
+                    className="text-xs font-medium text-slate-400 hover:text-[#0d1f3c] transition-colors"
+                  >
+                    {org.handoffNote ? 'Edit' : 'Add note'}
+                  </button>
+                )}
+              </div>
+
+              {handoffEditing ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={handoffDraft}
+                    onChange={(e) => setHandoffDraft(e.target.value)}
+                    rows={6}
+                    autoFocus
+                    placeholder="e.g. We're in active conversations with their VP of HR. Always CC Sarah. They prefer email over calls. Follow up in late August when recruiting season begins."
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0d1f3c]/20 focus:border-[#0d1f3c]/40 resize-none leading-relaxed"
+                  />
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => setHandoffEditing(false)}
+                      className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        updateHandoffNote(org.id, handoffDraft.trim());
+                        setHandoffEditing(false);
+                        showToast('Handoff note saved');
+                      }}
+                      className="text-xs font-semibold bg-[#0d1f3c] text-white px-3 py-1.5 rounded-lg hover:bg-[#1e3a5f] transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              ) : org.handoffNote ? (
+                <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                  {org.handoffNote}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400 italic">
+                  No handoff context yet. Add a note to help the next outreach lead pick up where you left off.
+                </p>
+              )}
+            </div>
+
+            {/* Link to handoff dashboard */}
+            <div className="rounded-2xl bg-[#0d1f3c]/4 ring-1 ring-[#0d1f3c]/8 px-5 py-4">
+              <p className="text-xs font-medium text-[#0d1f3c] mb-1">Semester Handoff</p>
+              <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                View the full handoff dashboard for an overview of all active relationships and open follow-ups.
+              </p>
+              <a
+                href="/handoff"
+                className="text-xs font-medium text-[#0d1f3c] hover:text-[#1e3a5f] transition-colors"
+              >
+                Open handoff dashboard →
+              </a>
             </div>
           </div>
         </div>

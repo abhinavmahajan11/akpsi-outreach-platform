@@ -1,5 +1,6 @@
 import Sidebar from './Sidebar';
 import Topbar from './Topbar';
+import MutationErrorBanner from './MutationErrorBanner';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -13,6 +14,7 @@ export default function AppShell({ children }: AppShellProps) {
         <Topbar />
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+      <MutationErrorBanner />
     </div>
   );
 }

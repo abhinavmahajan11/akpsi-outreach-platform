@@ -118,11 +118,15 @@ export default function AddOrgForm() {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     if (!name.trim()) errs.name = 'Organization name is required.';
-    if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+    if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
       errs.contactEmail = 'Enter a valid email address.';
     }
-    if (contactLinkedIn && !contactLinkedIn.includes('linkedin.com') && !contactLinkedIn.startsWith('http')) {
-      // Allow partial LinkedIn handles too — only warn on clearly wrong values
+    if (
+      contactLinkedIn.trim() &&
+      !contactLinkedIn.includes('linkedin.com') &&
+      !contactLinkedIn.startsWith('http')
+    ) {
+      errs.contactLinkedIn = 'Enter a full LinkedIn URL (e.g. linkedin.com/in/…).';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -412,13 +416,13 @@ export default function AddOrgForm() {
                 />
               </Field>
             </div>
-            <Field label="LinkedIn URL">
+            <Field label="LinkedIn URL" error={errors.contactLinkedIn}>
               <input
                 type="text"
                 value={contactLinkedIn}
                 onChange={(e) => setContactLinkedIn(e.target.value)}
                 placeholder="e.g. linkedin.com/in/taylorkim"
-                className={inputCls(false)}
+                className={inputCls(!!errors.contactLinkedIn)}
               />
             </Field>
           </Section>

@@ -83,11 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // ── Fetch profile row from DB ─────────────────────────────────────────────
 
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    if (error && error.code !== 'PGRST116') {
+      // PGRST116 = no rows found (new user, profile not yet created)
+      console.error('fetchProfile failed:', error.message);
+    }
     if (data) setProfile(data as UserProfile);
   }, []);
 
@@ -122,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
-    router.push('/auth');
+    router.push('/login');
   }, [router]);
 
   // ── Derived display values ────────────────────────────────────────────────

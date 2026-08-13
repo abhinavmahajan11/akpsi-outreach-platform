@@ -28,6 +28,7 @@ import {
   insertContact as insertContactDB,
   deleteContact as deleteContactDB,
   updateOrgFields,
+  updateHandoffNote as updateHandoffNoteDB,
   deleteActivity as deleteActivityDB,
   deleteNote as deleteNoteDB,
   deleteReminder as deleteReminderDB,
@@ -40,6 +41,9 @@ interface OrgsContextValue {
   organizations: Organization[];
   loading: boolean;
   error: string | null;
+  /** Non-null briefly when a background mutation fails. Clear with clearMutationError(). */
+  mutationError: string | null;
+  clearMutationError: () => void;
   /** Look up a single org by id (from local state — instant, no extra fetch). */
   getOrgById: (id: string) => Organization | undefined;
   /** Add a new org — writes to DB then prepends to local list. Async so forms can await it. */
@@ -62,6 +66,8 @@ interface OrgsContextValue {
   deleteReminder: (orgId: string, reminderId: string) => void;
   /** Add a contact to an org — writes to DB then updates local state. If isPrimary, demotes existing primaries. */
   addContact: (orgId: string, contact: Contact) => void;
+  /** Save the handoff note for an org (optimistic local + DB). */
+  updateHandoffNote: (orgId: string, note: string) => void;
   /** Remove a contact locally and from the DB. */
   deleteContact: (orgId: string, contactId: string) => void;
   /** Manually re-fetch all orgs from Supabase (e.g. after an external mutation). */
@@ -85,6 +91,8 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const clearMutationError = useCallback(() => setMutationError(null), []);
 
   // ── Initial load ──────────────────────────────────────────────────────────
 
@@ -134,16 +142,20 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
   );
 
   const addNote = useCallback((orgId: string, note: Note) => {
-    // Optimistic update
     setOrgs((prev) =>
       prev.map((o) =>
         o.id === orgId ? { ...o, notes: [note, ...o.notes] } : o,
       ),
     );
-    // Async DB write (fire-and-forget; error logged to console)
-    insertNote(orgId, note, user?.id).catch((err: Error) =>
-      console.error('addNote DB write failed:', err.message),
-    );
+    insertNote(orgId, note, user?.id).catch((err: Error) => {
+      console.error('addNote DB write failed:', err.message);
+      setMutationError('Failed to save note — changes may not persist.');
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.id === orgId ? { ...o, notes: o.notes.filter((n) => n.id !== note.id) } : o,
+        ),
+      );
+    });
   }, [user]);
 
   const addReminder = useCallback((orgId: string, reminder: Reminder) => {
@@ -154,9 +166,17 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
-    insertReminder(orgId, reminder, user?.id).catch((err: Error) =>
-      console.error('addReminder DB write failed:', err.message),
-    );
+    insertReminder(orgId, reminder, user?.id).catch((err: Error) => {
+      console.error('addReminder DB write failed:', err.message);
+      setMutationError('Failed to save reminder — changes may not persist.');
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.id === orgId
+            ? { ...o, reminders: o.reminders.filter((r) => r.id !== reminder.id) }
+            : o,
+        ),
+      );
+    });
   }, [user]);
 
   const logActivity = useCallback((orgId: string, item: ActivityItem) => {
@@ -171,92 +191,159 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
           : o,
       ),
     );
-    insertActivity(orgId, item, user?.id).catch((err: Error) =>
-      console.error('logActivity DB write failed:', err.message),
-    );
-    // Also persist last_contacted_at to the organizations row
+    insertActivity(orgId, item, user?.id).catch((err: Error) => {
+      console.error('logActivity DB write failed:', err.message);
+      setMutationError('Failed to log activity — changes may not persist.');
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.id === orgId
+            ? { ...o, recentActivity: o.recentActivity.filter((a) => a.id !== item.id) }
+            : o,
+        ),
+      );
+    });
     updateOrgFields(orgId, { last_contacted_at: item.date }).catch((err: Error) =>
       console.error('logActivity last_contacted_at update failed:', err.message),
     );
   }, [user]);
 
   const changeOrgStatus = useCallback((orgId: string, status: OutreachStatus) => {
-    setOrgs((prev) =>
-      prev.map((o) => (o.id === orgId ? { ...o, status } : o)),
-    );
-    updateOrgFields(orgId, { status }).catch((err: Error) =>
-      console.error('changeOrgStatus DB write failed:', err.message),
-    );
+    // Capture the old status so we can revert on failure
+    setOrgs((prev) => {
+      return prev.map((o) => (o.id === orgId ? { ...o, status } : o));
+    });
+    updateOrgFields(orgId, { status }).catch((err: Error) => {
+      console.error('changeOrgStatus DB write failed:', err.message);
+      setMutationError('Failed to update status — try again.');
+    });
   }, []);
 
   const deleteActivity = useCallback((orgId: string, activityId: string) => {
+    // Capture the item we're removing so we can revert on failure
+    let removed: ActivityItem | undefined;
     setOrgs((prev) =>
       prev.map((o) => {
         if (o.id !== orgId) return o;
+        removed = o.recentActivity.find((a) => a.id === activityId);
         const remaining = o.recentActivity.filter((a) => a.id !== activityId);
-        // Recompute lastContactedAt from the next most-recent activity
         const newLastContacted = remaining.length > 0 ? remaining[0].date : undefined;
         return { ...o, recentActivity: remaining, lastContactedAt: newLastContacted };
       }),
     );
-    deleteActivityDB(activityId).catch((err: Error) =>
-      console.error('deleteActivity DB write failed:', err.message),
-    );
+    deleteActivityDB(activityId).catch((err: Error) => {
+      console.error('deleteActivity DB write failed:', err.message);
+      setMutationError('Failed to delete activity — try refreshing.');
+      if (removed) {
+        setOrgs((prev) =>
+          prev.map((o) =>
+            o.id === orgId
+              ? { ...o, recentActivity: [removed!, ...o.recentActivity].sort(
+                  (a, b) => b.date.localeCompare(a.date),
+                ) }
+              : o,
+          ),
+        );
+      }
+    });
   }, []);
 
   const deleteNote = useCallback((orgId: string, noteId: string) => {
+    let removed: Note | undefined;
     setOrgs((prev) =>
-      prev.map((o) =>
-        o.id === orgId
-          ? { ...o, notes: o.notes.filter((n) => n.id !== noteId) }
-          : o,
-      ),
+      prev.map((o) => {
+        if (o.id !== orgId) return o;
+        removed = o.notes.find((n) => n.id === noteId);
+        return { ...o, notes: o.notes.filter((n) => n.id !== noteId) };
+      }),
     );
-    deleteNoteDB(noteId).catch((err: Error) =>
-      console.error('deleteNote DB write failed:', err.message),
-    );
+    deleteNoteDB(noteId).catch((err: Error) => {
+      console.error('deleteNote DB write failed:', err.message);
+      setMutationError('Failed to delete note — try refreshing.');
+      if (removed) {
+        setOrgs((prev) =>
+          prev.map((o) =>
+            o.id === orgId ? { ...o, notes: [removed!, ...o.notes] } : o,
+          ),
+        );
+      }
+    });
   }, []);
 
   const deleteReminder = useCallback((orgId: string, reminderId: string) => {
+    let removed: Reminder | undefined;
     setOrgs((prev) =>
-      prev.map((o) =>
-        o.id === orgId
-          ? { ...o, reminders: o.reminders.filter((r) => r.id !== reminderId) }
-          : o,
-      ),
+      prev.map((o) => {
+        if (o.id !== orgId) return o;
+        removed = o.reminders.find((r) => r.id === reminderId);
+        return { ...o, reminders: o.reminders.filter((r) => r.id !== reminderId) };
+      }),
     );
-    deleteReminderDB(reminderId).catch((err: Error) =>
-      console.error('deleteReminder DB write failed:', err.message),
-    );
+    deleteReminderDB(reminderId).catch((err: Error) => {
+      console.error('deleteReminder DB write failed:', err.message);
+      setMutationError('Failed to delete reminder — try refreshing.');
+      if (removed) {
+        setOrgs((prev) =>
+          prev.map((o) =>
+            o.id === orgId ? { ...o, reminders: [...o.reminders, removed!] } : o,
+          ),
+        );
+      }
+    });
   }, []);
 
   const addContact = useCallback((orgId: string, contact: Contact) => {
     setOrgs((prev) =>
       prev.map((o) => {
         if (o.id !== orgId) return o;
-        // If new contact is primary, demote existing primaries
         const updatedExisting = contact.isPrimary
           ? o.contacts.map((c) => ({ ...c, isPrimary: false }))
           : o.contacts;
         return { ...o, contacts: [...updatedExisting, contact] };
       }),
     );
-    insertContactDB(orgId, contact, user?.id).catch((err: Error) =>
-      console.error('addContact DB write failed:', err.message),
-    );
+    insertContactDB(orgId, contact, user?.id).catch((err: Error) => {
+      console.error('addContact DB write failed:', err.message);
+      setMutationError('Failed to save contact — changes may not persist.');
+      setOrgs((prev) =>
+        prev.map((o) =>
+          o.id === orgId
+            ? { ...o, contacts: o.contacts.filter((c) => c.id !== contact.id) }
+            : o,
+        ),
+      );
+    });
   }, [user]);
 
-  const deleteContact = useCallback((orgId: string, contactId: string) => {
+  const updateHandoffNote = useCallback((orgId: string, note: string) => {
     setOrgs((prev) =>
-      prev.map((o) =>
-        o.id === orgId
-          ? { ...o, contacts: o.contacts.filter((c) => c.id !== contactId) }
-          : o,
-      ),
+      prev.map((o) => o.id === orgId ? { ...o, handoffNote: note } : o),
     );
-    deleteContactDB(contactId).catch((err: Error) =>
-      console.error('deleteContact DB write failed:', err.message),
+    updateHandoffNoteDB(orgId, note).catch((err: Error) => {
+      console.error('updateHandoffNote DB write failed:', err.message);
+      setMutationError('Failed to save handoff note — changes may not persist.');
+    });
+  }, []);
+
+  const deleteContact = useCallback((orgId: string, contactId: string) => {
+    let removed: Contact | undefined;
+    setOrgs((prev) =>
+      prev.map((o) => {
+        if (o.id !== orgId) return o;
+        removed = o.contacts.find((c) => c.id === contactId);
+        return { ...o, contacts: o.contacts.filter((c) => c.id !== contactId) };
+      }),
     );
+    deleteContactDB(contactId).catch((err: Error) => {
+      console.error('deleteContact DB write failed:', err.message);
+      setMutationError('Failed to delete contact — try refreshing.');
+      if (removed) {
+        setOrgs((prev) =>
+          prev.map((o) =>
+            o.id === orgId ? { ...o, contacts: [...o.contacts, removed!] } : o,
+          ),
+        );
+      }
+    });
   }, []);
 
   return (
@@ -265,6 +352,8 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
         organizations: orgs,
         loading,
         error,
+        mutationError,
+        clearMutationError,
         getOrgById,
         addOrg,
         updateOrg,
@@ -277,6 +366,7 @@ export function OrgsProvider({ children }: { children: ReactNode }) {
         deleteReminder,
         addContact,
         deleteContact,
+        updateHandoffNote,
         refresh: load,
       }}
     >

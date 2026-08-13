@@ -55,10 +55,14 @@ export default function EventModal({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'scheduled' | 'completed' | 'cancelled'>('scheduled');
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Reset form whenever modal opens
   useEffect(() => {
     if (!open) return;
+    setFormError('');
+    setConfirmDelete(false);
 
     if (event) {
       // Edit mode — populate from event
@@ -108,6 +112,7 @@ export default function EventModal({
 
   async function handleSave() {
     if (!title.trim() || !startDate) return;
+    setFormError('');
     setSaving(true);
     try {
       const startAt = allDay
@@ -119,6 +124,12 @@ export default function EventModal({
             ? new Date(`${endDate}T23:59:59`).toISOString()
             : localInputsToIso(endDate, endTime)
           : null;
+
+      if (endAt && new Date(endAt) <= new Date(startAt)) {
+        setFormError('End time must be after start time.');
+        setSaving(false);
+        return;
+      }
 
       if (isEdit && event) {
         updateEvent(event.id, {
@@ -150,6 +161,8 @@ export default function EventModal({
         });
         onClose();
       }
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to save event.');
     } finally {
       setSaving(false);
     }
@@ -157,6 +170,10 @@ export default function EventModal({
 
   function handleDelete() {
     if (!event) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     deleteEvent(event.id);
     onClose();
   }
@@ -171,6 +188,13 @@ export default function EventModal({
       maxWidth="max-w-lg"
     >
       <div className="space-y-4">
+        {/* Form-level error */}
+        {formError && (
+          <p className="text-xs text-rose-600 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+            {formError}
+          </p>
+        )}
+
         {/* Title */}
         <div>
           <input
@@ -374,12 +398,30 @@ export default function EventModal({
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between pt-4 border-t border-slate-100">
         {isEdit ? (
-          <button
-            onClick={handleDelete}
-            className="text-xs font-medium text-rose-400 hover:text-rose-600 transition-colors"
-          >
-            Delete event
-          </button>
+          confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-rose-600">Delete this event?</span>
+              <button
+                onClick={handleDelete}
+                className="text-xs font-medium text-rose-600 hover:text-rose-700 underline"
+              >
+                Yes, delete
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-slate-500 hover:text-slate-700"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleDelete}
+              className="text-xs font-medium text-rose-400 hover:text-rose-600 transition-colors"
+            >
+              Delete event
+            </button>
+          )
         ) : (
           <span />
         )}

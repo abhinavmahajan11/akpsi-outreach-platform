@@ -82,6 +82,7 @@ interface DbOrganization {
   website: string | null;
   next_step: string;
   last_contacted_at: string | null;
+  handoff_note: string | null;
   created_at: string;
   updated_at: string;
   contacts: DbContact[];
@@ -167,6 +168,7 @@ function mapOrg(row: DbOrganization): Organization {
     notes,
     reminders,
     recentActivity: activities,
+    handoffNote: row.handoff_note ?? undefined,
   };
 }
 
@@ -411,6 +413,7 @@ export async function updateOrgFields(
     next_step?: string;
     last_contacted_at?: string | null;
     assigned_member?: string;
+    handoff_note?: string;
   },
 ): Promise<void> {
   const { error } = await supabase
@@ -418,4 +421,13 @@ export async function updateOrgFields(
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', orgId);
   if (error) throw new Error(`updateOrgFields: ${error.message}`);
+}
+
+/** Save the handoff note for an organization. */
+export async function updateHandoffNote(orgId: string, note: string): Promise<void> {
+  const { error } = await supabase
+    .from('organizations')
+    .update({ handoff_note: note, updated_at: new Date().toISOString() })
+    .eq('id', orgId);
+  if (error) throw new Error(`updateHandoffNote: ${error.message}`);
 }

@@ -53,8 +53,8 @@ export default function AuthForm({ initialMode = 'signin' }: { initialMode?: Mod
       setError('Full name is required.');
       return;
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
       return;
     }
 
@@ -185,7 +185,7 @@ export default function AuthForm({ initialMode = 'signin' }: { initialMode?: Mod
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder={mode === 'signup' ? 'At least 6 characters' : '••••••••'}
+                placeholder={mode === 'signup' ? 'At least 8 characters' : '••••••••'}
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
                 className={inputCls}
               />

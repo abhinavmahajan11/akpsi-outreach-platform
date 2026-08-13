@@ -155,18 +155,20 @@ export function CalendarProvider({ children }: { children: ReactNode }) {
       if (updates.status !== undefined)       dbPatch.status = updates.status;
       if (updates.organizationId !== undefined) dbPatch.organization_id = updates.organizationId;
 
-      patchCalendarEvent(id, dbPatch).catch((err: Error) =>
-        console.error('updateEvent DB write failed:', err.message),
-      );
+      patchCalendarEvent(id, dbPatch).catch((err: Error) => {
+        console.error('updateEvent DB write failed:', err.message);
+        setError('Failed to update event — try refreshing.');
+      });
     },
     [],
   );
 
   const deleteEvent = useCallback((id: string) => {
     setEvents((prev) => prev.filter((e) => e.id !== id));
-    deleteCalendarEvent(id).catch((err: Error) =>
-      console.error('deleteEvent DB write failed:', err.message),
-    );
+    deleteCalendarEvent(id).catch((err: Error) => {
+      console.error('deleteEvent DB write failed:', err.message);
+      setError('Failed to delete event — try refreshing.');
+    });
   }, []);
 
   const markComplete = useCallback(
