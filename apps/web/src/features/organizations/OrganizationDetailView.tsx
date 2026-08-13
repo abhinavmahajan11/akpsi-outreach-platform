@@ -61,6 +61,9 @@ export default function OrganizationDetailView({ orgId }: OrganizationDetailView
   function handleEmailSent(subject: string) {
     if (!org) return;
     logActivity(org.id, {
+      // handleEmailSent only ever runs from the onMarkSent event callback
+      // below, never render.
+      // eslint-disable-next-line react-hooks/purity
       id: `act-${Date.now()}`,
       type: 'email',
       title: subject || `Email to ${primaryContact?.name ?? org.name}`,

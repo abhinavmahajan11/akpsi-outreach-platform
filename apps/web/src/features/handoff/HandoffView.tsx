@@ -407,7 +407,7 @@ export default function HandoffView() {
         <div className="flex-1">
           <p className="text-sm font-semibold text-white">Before you hand off</p>
           <p className="mt-1 text-xs text-white/60 leading-relaxed">
-            Add a handoff note to every active partner and strong lead — it's the most valuable thing you can leave for the next committee. Open each org page and use the Handoff Context section. Check the Templates page for email outreach and best-practice playbooks.
+            Add a handoff note to every active partner and strong lead — it&apos;s the most valuable thing you can leave for the next committee. Open each org page and use the Handoff Context section. Check the Templates page for email outreach and best-practice playbooks.
           </p>
         </div>
         <Link
